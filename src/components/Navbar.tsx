@@ -17,6 +17,8 @@ import {
   X,
   BookOpen,
   Globe,
+  Archive,
+  DownloadCloud,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -67,6 +69,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const unreadNotifCount = notifications.filter((notification) => !notification.read).length;
 
+  // Filter out completed and cancelled projects from active site selector
+  const activeProjects = projects.filter(
+    (p) => p.status !== 'Completed' && p.status !== 'Cancelled'
+  );
+
   const navLinks = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     {
@@ -79,6 +86,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'payroll', label: 'Weekly Payroll', icon: DollarSign },
     { id: 'expenses', label: 'Expenses & Ledger', icon: Receipt },
     { id: 'reports', label: 'Reports & Costing', icon: FileText },
+    { id: 'archive', label: 'Project History', icon: Archive },
   ];
 
   const selectTab = (tabId: string) => {
@@ -88,10 +96,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <nav className="sticky top-0 z-40 border-b border-[#0d2b45] bg-[#123B5D] text-white shadow-md">
-      {/* Top application bar */}
+      {/* Top Application Bar */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-3">
-          {/* Logo and brand */}
+          {/* Logo and Brand */}
           <button
             type="button"
             onClick={() => selectTab('dashboard')}
@@ -116,7 +124,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </span>
           </button>
 
-          {/* Active project selector — desktop */}
+          {/* Active project selector — desktop (Shows ONLY active/in-progress sites) */}
           <div className="hidden items-center gap-2 rounded-xl border border-[#1a4c75] bg-[#0e2e49] px-3 py-1.5 lg:flex">
             <FolderKanban
               className="h-4 w-4 flex-shrink-0 text-[#18A999]"
@@ -128,145 +136,139 @@ export const Navbar: React.FC<NavbarProps> = ({
             <select
               id="desktop-project-select"
               value={activeProjectId}
-              onChange={(event) => onSelectProject(event.target.value)}
-              aria-label="Select Site"
-              className="max-w-[200px] cursor-pointer truncate bg-transparent text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-[#18A999]"
+              onChange={(e) => onSelectProject(e.target.value)}
+              aria-label="Select Active Site"
+              className="max-w-[210px] cursor-pointer truncate bg-transparent text-xs font-semibold text-white focus:outline-none"
             >
-              {projects.map((project) => (
-                <option
-                  key={project.id}
-                  value={project.id}
-                  className="bg-[#123B5D] text-white"
-                >
-                  {project.name} {project.code ? `(${project.code})` : ''}
+              {activeProjects.length === 0 ? (
+                <option value="" className="bg-[#123B5D] text-white">
+                  No Active Sites (All Archived)
                 </option>
-              ))}
+              ) : (
+                activeProjects.map((project) => (
+                  <option
+                    key={project.id}
+                    value={project.id}
+                    className="bg-[#123B5D] text-white"
+                  >
+                    {project.name} {project.code ? `(${project.code})` : ''}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
-          {/* Right action controls */}
-          <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-2">
-            {/* Receipt scanner */}
+          {/* Right Action Controls */}
+          <div className="flex items-center gap-2">
+            {/* Quick Receipt Scanner shortcut */}
             <button
-              type="button"
               onClick={onOpenReceiptScanner}
-              className="hidden cursor-pointer items-center gap-1.5 rounded-lg border border-[#1a4c75] bg-[#0e2e49] px-3 py-1.5 text-xs font-semibold text-teal-200 transition-colors hover:bg-[#164063] sm:flex"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0e2e49] hover:bg-[#164063] text-teal-200 border border-[#1a4c75] text-xs font-semibold transition-colors cursor-pointer"
               title="Camera Receipt Scanner (Smart AI OCR)"
-              aria-label="Scan Receipt"
             >
-              <Camera className="h-3.5 w-3.5 text-[#18A999]" aria-hidden="true" />
+              <Camera className="w-3.5 h-3.5 text-[#18A999]" />
               <span>Scan Receipt</span>
             </button>
 
-            {/* User guide */}
+            {/* Software Guide */}
             {onOpenGuideModal && (
               <button
-                type="button"
                 onClick={onOpenGuideModal}
-                className="cursor-pointer rounded-lg p-2 text-teal-100/70 transition-colors hover:bg-[#0e2e49] hover:text-white"
-                title="User Manual & Guidelines"
-                aria-label="Open User Manual and Guidelines"
+                className="p-2 rounded-lg text-teal-100/70 hover:text-white hover:bg-[#0e2e49] transition-colors cursor-pointer"
+                title="User Manual &amp; Guidelines"
               >
-                <BookOpen className="h-4 w-4" aria-hidden="true" />
+                <BookOpen className="w-4 h-4" />
               </button>
             )}
 
-            {/* Custom domain settings */}
+            {/* Custom Domain White-Label */}
             {onOpenDomainModal && (
               <button
-                type="button"
                 onClick={onOpenDomainModal}
-                className="cursor-pointer rounded-lg p-2 text-teal-100/70 transition-colors hover:bg-[#0e2e49] hover:text-white"
-                title="Custom Domain & White-Label Portal"
-                aria-label="Open Custom Domain settings"
+                className="p-2 rounded-lg text-teal-100/70 hover:text-white hover:bg-[#0e2e49] transition-colors cursor-pointer"
+                title="Custom Domain &amp; White-Label Portal"
               >
-                <Globe className="h-4 w-4" aria-hidden="true" />
+                <Globe className="w-4 h-4" />
               </button>
             )}
 
-            {/* Notifications */}
+            {/* Notification Bell */}
             <button
-              type="button"
               onClick={onOpenNotifications}
-              className="relative cursor-pointer rounded-lg p-2 text-teal-100/70 transition-colors hover:bg-[#0e2e49] hover:text-white"
-              title="Notifications & Operations Alert Center"
-              aria-label={`Notifications${unreadNotifCount > 0 ? `, ${unreadNotifCount} unread` : ''}`}
+              className="relative p-2 rounded-lg text-teal-100/70 hover:text-white hover:bg-[#0e2e49] transition-colors cursor-pointer"
+              title="Notifications &amp; Operations Alert Center"
             >
-              <Bell className="h-4 w-4" aria-hidden="true" />
+              <Bell className="w-4 h-4" />
               {unreadNotifCount > 0 && (
-                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#18A999] px-1 text-[10px] font-bold text-white">
-                  {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
+                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#18A999] text-white font-bold text-[10px] flex items-center justify-center animate-pulse">
+                  {unreadNotifCount}
                 </span>
               )}
             </button>
 
             <PWAInstallButton />
 
-            {/* User profile dropdown */}
+            {/* User Profile Pill with Dropdown */}
             <div className="relative">
               <button
-                type="button"
-                onClick={() => setUserDropdownOpen((isOpen) => !isOpen)}
-                aria-expanded={userDropdownOpen}
-                aria-haspopup="menu"
-                className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#1a4c75] bg-[#0e2e49] p-1.5 text-left transition-all hover:border-[#18A999]/60 hover:bg-[#164063] sm:px-3 sm:py-1.5"
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-[#0e2e49] hover:bg-[#164063] border border-[#1a4c75] hover:border-[#18A999]/60 transition-all text-left cursor-pointer"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#18A999] text-xs font-bold text-white shadow-sm">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold bg-[#18A999] text-white shadow-xs">
                   {currentUser.avatarInitials}
-                </span>
-                <span className="hidden min-w-0 max-w-[130px] md:block">
-                  <span className="block truncate text-xs font-bold leading-tight text-white">
+                </div>
+                <div className="hidden md:block min-w-0 max-w-[130px]">
+                  <div className="text-xs font-bold text-white truncate leading-tight">
                     {currentUser.name}
-                  </span>
-                  <span className="block truncate text-[10px] font-medium leading-tight text-teal-300">
+                  </div>
+                  <div className="text-[10px] text-teal-300 truncate leading-tight font-medium">
                     {currentUser.role}
-                  </span>
-                </span>
-                <ChevronDown
-                  className="hidden h-3.5 w-3.5 text-teal-200/70 sm:block"
-                  aria-hidden="true"
-                />
+                  </div>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-teal-200/70 hidden sm:block" />
               </button>
 
+              {/* User Dropdown Menu */}
               {userDropdownOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 z-50 mt-2 w-64 rounded-xl border border-[#1a4c75] bg-[#123B5D] py-2 text-xs shadow-2xl"
-                >
-                  <div className="border-b border-[#1a4c75] px-4 py-2">
+                <div className="absolute right-0 mt-2 w-64 bg-[#123B5D] border border-[#1a4c75] rounded-xl shadow-2xl py-2 z-50 text-xs">
+                  <div className="px-4 py-2 border-b border-[#1a4c75]">
                     <div className="font-bold text-white">{currentUser.name}</div>
                     <div className="text-[11px] text-teal-300">{currentUser.role}</div>
-                    <div className="mt-0.5 font-mono text-[10px] text-teal-100/60">
+                    <div className="text-[10px] text-teal-100/60 font-mono mt-0.5">
                       User: @{currentUser.username} | {currentUser.accessLevel}
                     </div>
                   </div>
-
                   <div className="py-1">
                     <button
-                      type="button"
-                      role="menuitem"
                       onClick={() => {
                         setUserDropdownOpen(false);
                         onOpenProfileModal();
                       }}
-                      className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-slate-100 hover:bg-[#0e2e49]"
+                      className="w-full px-4 py-2 text-left hover:bg-[#0e2e49] text-slate-100 flex items-center gap-2 cursor-pointer"
                     >
-                      <Edit2 className="h-3.5 w-3.5 text-[#18A999]" aria-hidden="true" />
-                      <span>Edit Profile / License</span>
+                      <Edit2 className="w-3.5 h-3.5 text-[#18A999]" />
+                      <span>Edit Profile / Credentials</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        selectTab('archive');
+                      }}
+                      className="w-full px-4 py-2 text-left hover:bg-[#0e2e49] text-teal-300 flex items-center gap-2 cursor-pointer"
+                    >
+                      <Archive className="w-3.5 h-3.5" />
+                      <span>Project History &amp; Archive</span>
                     </button>
                   </div>
-
-                  <div className="border-t border-[#1a4c75] pt-1">
+                  <div className="pt-1 border-t border-[#1a4c75]">
                     <button
-                      type="button"
-                      role="menuitem"
                       onClick={() => {
                         setUserDropdownOpen(false);
                         onLogout();
                       }}
-                      className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-rose-300 hover:bg-rose-950/60"
+                      className="w-full px-4 py-2 text-left hover:bg-rose-950/60 text-rose-300 flex items-center gap-2 cursor-pointer"
                     >
-                      <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                      <LogOut className="w-3.5 h-3.5" />
                       <span>Log Out Session</span>
                     </button>
                   </div>
@@ -274,63 +276,45 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* Mobile menu toggle */}
+            {/* Mobile menu trigger */}
             <button
-              type="button"
-              onClick={() => setMobileMenuOpen((isOpen) => !isOpen)}
-              aria-expanded={mobileMenuOpen}
-              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-              className="cursor-pointer rounded-lg p-2 text-teal-100 transition-colors hover:bg-[#0e2e49] hover:text-white md:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 text-teal-100 hover:text-white cursor-pointer"
             >
-              {mobileMenuOpen ? (
-                <X className="h-5 w-5" aria-hidden="true" />
-              ) : (
-                <Menu className="h-5 w-5" aria-hidden="true" />
-              )}
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Desktop navigation */}
-      <div className="hidden border-t border-[#1a4c75]/80 bg-[#0e2e49] md:block">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <nav
-            aria-label="Main navigation"
-            className="flex space-x-1 overflow-x-auto py-1.5"
-          >
+      {/* Navigation Sub-bar (Desktop) */}
+      <div className="hidden md:block bg-[#0e2e49] border-t border-[#1a4c75]/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex space-x-1 py-1.5 overflow-x-auto">
             {navLinks.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
-
               return (
                 <button
-                  type="button"
                   key={item.id}
-                  onClick={() => selectTab(item.id)}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors ${
+                  onClick={() => onSelectTab(item.id)}
+                  className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
                     isActive
-                      ? 'bg-[#18A999] font-bold text-white shadow-sm'
-                      : 'text-slate-200 hover:bg-[#164063] hover:text-white'
+                      ? 'bg-[#18A999] text-white font-bold shadow-xs'
+                      : 'text-slate-200 hover:text-white hover:bg-[#164063]'
                   }`}
                 >
-                  <Icon
-                    className={`h-3.5 w-3.5 ${
-                      isActive ? 'text-white' : 'text-teal-200/70'
-                    }`}
-                    aria-hidden="true"
-                  />
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-teal-200/70'}`} />
                   <span>{item.label}</span>
                   {item.badge !== undefined && item.badge > 0 && (
                     <span
-                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                         isActive
                           ? 'bg-[#123B5D] text-white'
-                          : 'border border-[#18A999]/40 bg-[#18A999]/30 text-teal-200'
+                          : 'bg-[#18A999]/30 text-teal-200 border border-[#18A999]/40'
                       }`}
                     >
-                      {item.badge > 99 ? '99+' : item.badge}
+                      {item.badge}
                     </span>
                   )}
                 </button>
@@ -340,105 +324,61 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Mobile navigation drawer */}
+      {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="space-y-1 border-t border-[#1a4c75] bg-[#0e2e49] px-4 pb-4 pt-2 md:hidden">
-          <div className="mb-2 border-b border-[#1a4c75] p-2">
-            <label
-              htmlFor="mobile-project-select"
-              className="mb-1 block text-[10px] font-bold uppercase text-teal-200/60"
-            >
-              Active Site
-            </label>
+        <div className="md:hidden bg-[#0e2e49] border-t border-[#1a4c75] px-4 pt-2 pb-4 space-y-1">
+          {/* Site Selector in Mobile (Active only) */}
+          <div className="p-2 border-b border-[#1a4c75] mb-2">
+            <span className="text-[10px] uppercase font-bold text-teal-200/60 block mb-1">Active Site</span>
             <select
-              id="mobile-project-select"
               value={activeProjectId}
-              onChange={(event) => onSelectProject(event.target.value)}
-              className="w-full cursor-pointer rounded-lg border border-[#1a4c75] bg-[#123B5D] px-2.5 py-1.5 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-[#18A999]"
+              onChange={(e) => onSelectProject(e.target.value)}
+              className="w-full bg-[#123B5D] border border-[#1a4c75] text-white text-xs font-semibold rounded-lg px-2.5 py-1.5"
             >
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
+              {activeProjects.length === 0 ? (
+                <option value="">No Active Sites (All Archived)</option>
+              ) : (
+                activeProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
-
-          {/* Mobile receipt scanner shortcut */}
-          <button
-            type="button"
-            onClick={() => {
-              setMobileMenuOpen(false);
-              onOpenReceiptScanner();
-            }}
-            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-xs font-medium text-slate-200 hover:bg-[#164063]"
-          >
-            <Camera className="h-4 w-4 text-teal-200" aria-hidden="true" />
-            <span>Scan Receipt</span>
-          </button>
 
           {navLinks.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
-
             return (
               <button
-                type="button"
                 key={item.id}
-                onClick={() => selectTab(item.id)}
-                aria-current={isActive ? 'page' : undefined}
-                className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2.5 text-xs font-medium transition-colors ${
+                onClick={() => {
+                  onSelectTab(item.id);
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-medium transition-colors ${
                   isActive
-                    ? 'bg-[#18A999] font-semibold text-white'
+                    ? 'bg-[#18A999] text-white font-semibold'
                     : 'text-slate-200 hover:bg-[#164063]'
                 }`}
               >
-                <span className="flex items-center gap-2.5">
-                  <Icon className="h-4 w-4" aria-hidden="true" />
+                <div className="flex items-center gap-2.5">
+                  <Icon className="w-4 h-4" />
                   <span>{item.label}</span>
-                </span>
+                </div>
                 {item.badge !== undefined && item.badge > 0 && (
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                      isActive
-                        ? 'bg-[#123B5D] text-white'
-                        : 'bg-[#18A999]/30 text-teal-200'
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                      isActive ? 'bg-[#123B5D] text-white' : 'bg-[#18A999]/30 text-teal-200'
                     }`}
                   >
-                    {item.badge > 99 ? '99+' : item.badge}
+                    {item.badge}
                   </span>
                 )}
               </button>
             );
           })}
-
-          {onOpenGuideModal && (
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenGuideModal();
-              }}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-slate-200 hover:bg-[#164063]"
-            >
-              <BookOpen className="h-4 w-4" aria-hidden="true" />
-              <span>User Manual & Guidelines</span>
-            </button>
-          )}
-
-          {onOpenDomainModal && (
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenDomainModal();
-              }}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-slate-200 hover:bg-[#164063]"
-            >
-              <Globe className="h-4 w-4" aria-hidden="true" />
-              <span>Custom Domain & White-Label Portal</span>
-            </button>
-          )}
         </div>
       )}
     </nav>
