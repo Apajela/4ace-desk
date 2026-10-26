@@ -1,0 +1,6 @@
+{
+  "name": "4Ace Desk - Project Site Management & EMS",
+  "description": "A full-stack, offline-ready Project Site Management & EMS built for client, site, foremen, and labor management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

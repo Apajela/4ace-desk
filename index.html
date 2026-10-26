@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>4Ace Desk - Project Site Management &amp; EMS</title>
+    <meta name="description" content="A full-stack, offline-ready Project Site Management &amp; EMS built for client, site, foremen and labor management." />
+    <meta property="og:title" content="4Ace Desk - Project Site Management &amp; EMS" />
+    <meta property="og:description" content="A full-stack, offline-ready Project Site Management &amp; EMS built for client, site, foremen and labor management." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2318A999'><path d='M2 18h20v2H2zM12 4a8 8 0 0 0-7.94 7h15.88A8 8 0 0 0 12 4z'/></svg>" />
+    <style>
+      .app-loader-wrap {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #FFFFFF;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: #263238;
+        margin: 0;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      .app-loader-card {
+        max-width: 420px;
+        width: 100%;
+        background-color: #EAF7FA;
+        border: 1px solid #bce6ed;
+        border-radius: 16px;
+        padding: 32px 24px;
+        text-align: center;
+        box-shadow: 0 10px 25px -5px rgba(18, 59, 93, 0.1);
+      }
+      .app-spinner {
+        width: 44px;
+        height: 44px;
+        border: 4px solid #bce6ed;
+        border-top-color: #123B5D;
+        border-right-color: #18A999;
+        border-radius: 50%;
+        animation: app-spin 0.8s linear infinite;
+        margin: 0 auto 18px;
+      }
+      @keyframes app-spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body class="bg-white text-[#263238] antialiased selection:bg-[#18A999] selection:text-white">
+    <div id="root">
+      <div class="app-loader-wrap">
+        <div class="app-loader-card">
+          <div class="app-spinner"></div>
+          <h2 style="font-size: 18px; font-weight: 800; margin: 0 0 6px; color: #123B5D; letter-spacing: -0.02em;">
+            4Ace Desk <span style="color: #18A999;">EMS</span>
+          </h2>
+          <p style="font-size: 13px; color: #546e7a; margin: 0;">
+            Initializing Project Site Management &amp; Labor Workspace...
+          </p>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
