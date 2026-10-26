@@ -15,7 +15,7 @@ import {
 export const DEFAULT_USERS: UserProfile[] = [
   {
     id: 'user-1',
-    name: 'Engr. Arriana Daoag',
+    name: 'Managing Contractor',
     username: 'arriana',
     password: 'admin123',
     pin: '1234',
@@ -35,7 +35,7 @@ export const DEFAULT_USERS: UserProfile[] = [
   },
   {
     id: 'user-2',
-    name: 'Engr. Mark Santos',
+    name: 'Project Engineer',
     username: 'marksantos',
     password: 'admin123',
     pin: '1234',
@@ -110,7 +110,7 @@ export const DEFAULT_PROJECTS: Project[] = [
     spent: 120000,
     startDate: '2026-11-01',
     targetDate: '2027-06-30',
-    supervisor: 'Engr. Arriana Daoag',
+    supervisor: 'Mang Nestor Dela Cruz (Foreman)',
     progress: 5.0,
     description: 'High-clearance pre-engineered steel framing, reinforced concrete slab on grade.',
   },
@@ -146,7 +146,7 @@ export const DEFAULT_ATTENDANCE: AttendanceRecord[] = [
     dailyWage: 1250,
     notes: 'Supervised concrete pouring and rebar clearance inspection.',
     remarks: 'Supervised concrete pouring and rebar clearance inspection.',
-    verifiedBy: 'Engr. Arriana Daoag',
+    verifiedBy: 'Managing Contractor',
   },
   {
     id: 'att-2',
