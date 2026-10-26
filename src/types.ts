@@ -35,7 +35,6 @@ export interface CompanySettings {
   contactNumber: string;
   email: string;
   currency: string;
-  customDomain: string;
 }
 
 export interface Project {
@@ -241,13 +240,3 @@ export interface AppNotification {
 
 export type NotificationItem = AppNotification;
 
-export interface CustomDomainConfig {
-  domain: string;
-  configured: boolean;
-  verified: boolean;
-  records: {
-    type: string;
-    host: string;
-    value: string;
-  }[];
-}
