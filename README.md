@@ -10,7 +10,6 @@ A full-stack, offline-ready Project Site Management & EMS built for client, site
 - **Expense & Procurement Ledger**: Official Receipts (OR) and invoice tracker with 12% BIR EVAT deduction and categorized disbursements.
 - **AI Receipt Scanner**: Optical OCR extraction for hardware store receipts (Wilcon Depot, Petron, SafetyFirst) with line-item detail parsing.
 - **Executive Reports & Physical S-Curve**: Financial variance analysis, milestone accomplishment tracking, and safe man-hours logging.
-- **White-Label Custom Domain**: Domain setup wizard with DNS CNAME records and SSL verification simulation.
 
 ---
 

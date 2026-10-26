@@ -15,8 +15,6 @@ import {
   Edit2,
   Menu,
   X,
-  BookOpen,
-  Globe,
 } from 'lucide-react';
 import { UserProfile, Project, CompanySettings, AppNotification } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -35,8 +33,6 @@ export interface NavbarProps {
   onOpenProfileModal: () => void;
   onOpenReceiptScanner: () => void;
   onOpenNewProject?: () => void;
-  onOpenGuideModal?: () => void;
-  onOpenDomainModal?: () => void;
   onLogout: () => void;
   pendingPrioritiesCount: number;
 }
@@ -52,8 +48,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNotifications,
   onOpenProfileModal,
   onOpenReceiptScanner,
-  onOpenGuideModal,
-  onOpenDomainModal,
   onLogout,
   pendingPrioritiesCount,
 }) => {
@@ -128,28 +122,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Camera className="w-3.5 h-3.5 text-[#18A999]" />
               <span>Scan Receipt</span>
             </button>
-
-            {/* Software Guide */}
-            {onOpenGuideModal && (
-              <button
-                onClick={onOpenGuideModal}
-                className="p-2 rounded-lg text-teal-100/70 hover:text-white hover:bg-[#0e2e49] transition-colors cursor-pointer"
-                title="User Manual &amp; Guidelines"
-              >
-                <BookOpen className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Custom Domain White-Label */}
-            {onOpenDomainModal && (
-              <button
-                onClick={onOpenDomainModal}
-                className="p-2 rounded-lg text-teal-100/70 hover:text-white hover:bg-[#0e2e49] transition-colors cursor-pointer"
-                title="Custom Domain &amp; White-Label Portal"
-              >
-                <Globe className="w-4 h-4" />
-              </button>
-            )}
 
             {/* Notification Bell */}
             <button
