@@ -36,7 +36,7 @@ export interface Project {
   client: string;
   location: string;
   category: 'Residential' | 'Commercial' | 'Industrial' | 'Infrastructure';
-  status: 'In Progress' | 'Planning' | 'Completed' | 'On Hold';
+  status: 'In Progress' | 'Planning' | 'Completed' | 'On Hold' | 'Cancelled';
   budget: number;
   spent: number;
   startDate: string;
