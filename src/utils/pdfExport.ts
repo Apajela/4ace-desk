@@ -133,39 +133,25 @@ export const exportExecutiveReportPdf = (
     margin: { left: 14, right: 14 },
   });
 
-  // Engineering Sign-Off Box (Bottom of Page 1)
+  // Minimal report sign-off: Prepared By and Client only.
   const signY = 240;
   doc.setDrawColor(200, 200, 200);
   doc.line(14, signY, 196, signY);
-
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...primaryColor);
-
-  // Signatory 1
-  doc.text(userProfile?.signatureApprovedBy || userProfile?.name || 'Managing Contractor', 30, signY + 15, { align: 'center' });
+  doc.line(35, signY + 11, 85, signY + 11);
+  doc.text(userProfile?.signaturePreparedBy || userProfile?.name || 'Prepared By', 60, signY + 16, { align: 'center' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  if (userProfile?.signatureApprovedTitle) doc.text(userProfile.signatureApprovedTitle, 30, signY + 19, { align: 'center' });
-  doc.line(14, signY + 11, 46, signY + 11);
-
-  // Signatory 2
+  doc.text('Prepared By', 60, signY + 20, { align: 'center' });
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  if (userProfile?.signatureEngineerName) doc.text(userProfile.signatureEngineerName, 105, signY + 15, { align: 'center' });
+  doc.line(125, signY + 11, 175, signY + 11);
+  doc.text(project.client || 'Client / Project Owner', 150, signY + 16, { align: 'center' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  if (userProfile?.signatureEngineerTitle) doc.text(userProfile.signatureEngineerTitle, 105, signY + 19, { align: 'center' });
-  doc.line(89, signY + 11, 121, signY + 11);
-
-  // Signatory 3
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text(project.client || 'Project Owner', 170, signY + 15, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  if (userProfile?.signatureClientTitle) doc.text(userProfile.signatureClientTitle, 170, signY + 19, { align: 'center' });
-  doc.line(154, signY + 11, 186, signY + 11);
+  doc.text('Client', 150, signY + 20, { align: 'center' });
 
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
@@ -412,9 +398,7 @@ export const exportPayrollMasterPdf = (
 
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.text('Prepared By:', 14, finalY + 25);
-  doc.text(`Audited By: ${project.supervisor}`, 105, finalY + 25);
-  doc.text('Approved By: Managing Contractor', 200, finalY + 25);
+  doc.text('Prepared By: ____________________', 14, finalY + 25);
 
   const fileName = `Weekly_Payroll_Master_${project.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
   doc.save(fileName);
