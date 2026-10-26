@@ -10,16 +10,19 @@ import {
   AlertCircle,
   FileSpreadsheet,
   X,
-  CheckCircle,
+  AlertTriangle,
+  Printer,
 } from 'lucide-react';
 import { ExpenseItem, Project, ExpenseCategory } from '../types';
 import { DEFAULT_EXPENSES } from '../data/defaultData';
+import { triggerBrowserPrint } from '../utils/printReport';
 
 export interface ExpensesViewProps {
   currentProject?: Project;
   expenses?: ExpenseItem[];
   onAddExpense?: (expense: Omit<ExpenseItem, 'id'>) => void;
   onUpdateExpenseStatus?: (id: string, status: ExpenseItem['status']) => void;
+  onDeleteExpense?: (id: string) => void;
   onOpenReceiptScanner?: () => void;
 }
 
@@ -28,12 +31,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   expenses: externalExpenses,
   onAddExpense,
   onUpdateExpenseStatus,
+  onDeleteExpense,
   onOpenReceiptScanner,
 }) => {
   const [internalExpenses, setInternalExpenses] = useState<ExpenseItem[]>(DEFAULT_EXPENSES);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<ExpenseItem | null>(null);
 
   // New expense form states
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -106,8 +111,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     setShowAddModal(false);
   };
 
-  const handleDeleteExpense = (id: string) => {
-    setInternalExpenses((prev) => prev.filter((e) => e.id !== id));
+  const handleConfirmDelete = () => {
+    if (!itemToDelete) return;
+
+    if (onDeleteExpense) {
+      onDeleteExpense(itemToDelete.id);
+    }
+    setInternalExpenses((prev) => prev.filter((e) => e.id !== itemToDelete.id));
+    setItemToDelete(null);
   };
 
   return (
@@ -198,7 +209,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         </div>
       </div>
 
-      {/* Controls & Filters - Section: Ice Blue #EAF7FA */}
+      {/* Controls & Filters */}
       <div className="flex flex-col sm:flex-row gap-3 justify-between items-center bg-[#EAF7FA] p-3.5 rounded-2xl border border-[#cbeaf0] shadow-xs">
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-2.5 w-4 h-4 text-[#546e7a]" />
@@ -229,11 +240,12 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             <option value="Others">Others</option>
           </select>
           <button
-            onClick={() => window.print()}
-            className="p-2 bg-white border border-[#cbeaf0] rounded-xl text-[#123B5D] hover:bg-slate-50 transition cursor-pointer"
-            title="Print or Export Ledger"
+            onClick={() => triggerBrowserPrint()}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#cbeaf0] rounded-xl text-[#123B5D] hover:bg-slate-50 transition cursor-pointer text-xs font-bold"
+            title="Print Ledger Sheet"
           >
-            <Download className="w-4 h-4" />
+            <Printer className="w-3.5 h-3.5 text-[#18A999]" />
+            <span>Print</span>
           </button>
         </div>
       </div>
@@ -317,9 +329,12 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                     </td>
                     <td className="py-3 px-4 text-center">
                       <button
-                        onClick={() => handleDeleteExpense(exp.id)}
-                        className="text-slate-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
-                        title="Delete record"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setItemToDelete(exp);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                        title="Delete expense voucher"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -331,6 +346,52 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {itemToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-[#123B5D]">Delete Expense Record?</h3>
+                <p className="text-[11px] text-[#546e7a]">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
+              <p className="font-semibold text-[#123B5D]">
+                {itemToDelete.description || itemToDelete.notes}
+              </p>
+              <p className="text-[#546e7a]">
+                Vendor: <strong>{itemToDelete.vendor || itemToDelete.supplier}</strong>
+              </p>
+              <p className="text-[#18A999] font-black font-mono">
+                Amount: ₱{Number(itemToDelete.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setItemToDelete(null)}
+                className="px-3.5 py-1.5 border border-slate-200 rounded-xl text-xs font-semibold text-[#546e7a] hover:bg-slate-50 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Expense Modal */}
       {showAddModal && (
