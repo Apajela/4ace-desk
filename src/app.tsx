@@ -7,6 +7,7 @@ import {
   PayrollEntry,
   NotificationItem,
   UserProfile as UserProfileType,
+  CustomDomainConfig,
   CompanySettings,
   AttendanceRecord as AttendanceRecordType,
   CashAdvance,
@@ -22,6 +23,7 @@ import {
   DEFAULT_NOTIFICATIONS,
   DEFAULT_USERS,
   DEFAULT_COMPANY,
+  DEFAULT_CUSTOM_DOMAIN,
   DEFAULT_ATTENDANCE,
   DEFAULT_CASH_ADVANCES,
 } from './data/defaultData';
@@ -39,6 +41,8 @@ import { CompletedProjectsView } from './components/CompletedProjectsView';
 import { ReceiptScannerModal as ReceiptScanner } from './components/ReceiptScanner';
 import { NotificationModal as Notification } from './components/Notification';
 import { UserProfileModal as UserProfile } from './components/UserProfile';
+import { CustomDomain } from './components/CustomDomain';
+import { SoftwareGuideModal as SoftwareGuide } from './components/SoftwareGuide';
 import { ProjectModal } from './components/Project';
 
 export default function App() {
@@ -107,7 +111,9 @@ export default function App() {
   const [notifications, setNotifications] = useState<NotificationItem[]>(() =>
     getInitialData('4ace_notifications', DEFAULT_NOTIFICATIONS)
   );
-  
+  const [domainConfig, setDomainConfig] = useState<CustomDomainConfig>(() =>
+    getInitialData('4ace_domain', DEFAULT_CUSTOM_DOMAIN)
+  );
 
   // Modal Control States
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
@@ -115,7 +121,9 @@ export default function App() {
   const [showNotification, setShowNotification] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
-  
+  const [showDomain, setShowDomain] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+
   // App initialization timer
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -657,7 +665,14 @@ export default function App() {
     setCurrentUser(newUser);
   };
 
-  
+  const handleSaveDomain = (domain: string) => {
+    setDomainConfig((prev) => ({
+      ...prev,
+      domain,
+      configured: true,
+      verified: true,
+    }));
+  };
 
   // Cash Advance Handlers
   const handleAddCashAdvance = (newCA: Omit<CashAdvance, 'id'>) => {
@@ -753,6 +768,8 @@ export default function App() {
         onOpenProfileModal={() => setShowProfile(true)}
         onOpenReceiptScanner={() => setShowScanner(true)}
         onOpenNewProject={() => setShowProjectModal(true)}
+        onOpenGuideModal={() => setShowGuide(true)}
+        onOpenDomainModal={() => setShowDomain(true)}
         onLogout={() => setCurrentUser(null)}
         pendingPrioritiesCount={pendingPrioritiesCount}
       />
@@ -859,6 +876,33 @@ export default function App() {
         )}
       </main>
 
+      {/* Footer */}
+      <footer className="border-t border-[#0d2b45] bg-[#123B5D] py-4 px-6 text-center text-xs text-slate-300">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span className="text-white font-medium">4Ace Desk Project Site Management &amp; EMS</span>
+          <div className="flex items-center gap-4 text-[11px]">
+            <button
+              onClick={() => setActiveTab('archive')}
+              className="text-[#18A999] hover:text-[#a2f0e7] font-bold cursor-pointer"
+            >
+              Project History &amp; Archive
+            </button>
+            <button
+              onClick={() => setShowGuide(true)}
+              className="text-slate-300 hover:text-white cursor-pointer"
+            >
+              User Guide
+            </button>
+            <button
+              onClick={() => setShowDomain(true)}
+              className="text-slate-300 hover:text-white cursor-pointer"
+            >
+              Domain Config
+            </button>
+          </div>
+        </div>
+      </footer>
+
       {/* Global Modals */}
       {showAttendanceModal && (
         <AttendanceRecord
@@ -908,3 +952,18 @@ export default function App() {
           onAddProject={handleAddProject}
         />
       )}
+
+      {showDomain && (
+        <CustomDomain
+          config={domainConfig}
+          onClose={() => setShowDomain(false)}
+          onSaveDomain={handleSaveDomain}
+        />
+      )}
+
+      {showGuide && (
+        <SoftwareGuide onClose={() => setShowGuide(false)} />
+      )}
+    </div>
+  );
+}
