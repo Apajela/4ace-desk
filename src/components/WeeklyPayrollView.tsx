@@ -23,6 +23,7 @@ import { DEFAULT_WORKERS, DEFAULT_PAYROLL, DEFAULT_COMPANY, DEFAULT_PROJECTS, DE
 import { Payslip } from './Payslip';
 import { PayrollMasterPrinter } from './PayrollMasterPrinter';
 import { calculateProjectLaborAllocation } from '../utils/payrollExpenseHelper';
+import { exportPayrollMasterPdf, exportSinglePayslipPdf } from '../utils/pdfExport';
 
 export interface WeeklyPayrollViewProps {
   currentProject?: Project;
@@ -132,7 +133,6 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
   // Merge cash advances into worker payroll entries dynamically
   const activePayroll: PayrollEntry[] = useMemo(() => {
     return basePayroll.map((entry) => {
-      // Sum all active cash advances for this worker
       const workerCAs = activeCashAdvances.filter(
         (ca) => ca.workerId === entry.workerId && !ca.deducted
       );
@@ -214,6 +214,17 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
     setShowPayslipModal(true);
   };
 
+  const handleDownloadMasterPdf = () => {
+    exportPayrollMasterPdf(currentProject, DEFAULT_COMPANY, activePayroll, cutoffLabel);
+  };
+
+  const handleDownloadSinglePayslipPdf = (workerId: string) => {
+    const item = payslipItems.find((p) => p.workerId === workerId) || payslipItems[0];
+    if (item) {
+      exportSinglePayslipPdf(currentProject, DEFAULT_COMPANY, item, cutoffStartDate, cutoffEndDate);
+    }
+  };
+
   const handleCreateCashAdvance = (e: React.FormEvent) => {
     e.preventDefault();
     const worker = externalWorkers.find((w) => w.id === caWorkerId) || externalWorkers[0];
@@ -256,9 +267,9 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
         `Site Labor Duty (${laborAllocation.maxChargeableWindowDays} days duty from project start ${currentProject.startDate}) - Cutoff ${cutoffStartDate} to ${cutoffEndDate}`
       );
       setLaborPostedMessage(
-        `Matagumpay na na-post ang ₱${laborAllocation.totalChargeableLaborExpense.toLocaleString()} sa Project Expenses (${laborAllocation.maxChargeableWindowDays} araw simula noong nag-umpisa ang project)!`
+        `Successfully posted ₱${laborAllocation.totalChargeableLaborExpense.toLocaleString()} to Project Expenses (${laborAllocation.maxChargeableWindowDays} duty days charged starting from project commencement date)!`
       );
-      setTimeout(() => setLaborPostedMessage(null), 4000);
+      setTimeout(() => setLaborPostedMessage(null), 5000);
     }
   };
 
@@ -304,7 +315,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
           <button
             onClick={() => setShowCashAdvanceModal(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-xs"
-            title="Mag-enter ng Cash Advance (Bale) para sa trabahador"
+            title="Record a worker cash advance deduction"
           >
             <Plus className="w-4 h-4" />
             <span>+ Cash Advance Entry</span>
@@ -314,30 +325,40 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
           <button
             onClick={() => setShowCashAdvanceLedger(true)}
             className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-[#123B5D] border border-slate-200 rounded-xl text-xs font-bold transition cursor-pointer shadow-xs"
-            title="Tingnan ang listahan ng lahat ng Cash Advance"
+            title="View complete cash advance deduction ledger"
           >
             <Receipt className="w-4 h-4 text-[#18A999]" />
             <span>CA Ledger ({activeCashAdvances.filter((c) => !c.deducted).length})</span>
           </button>
 
-          {/* Save PDF / Print Master Registry */}
+          {/* Save PDF (Master Sheet) */}
           <button
-            onClick={() => setShowMasterPrinter(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#18A999] hover:bg-[#148f81] text-white rounded-xl text-xs font-black transition cursor-pointer shadow-sm"
-            title="Save as PDF o Print Master Payroll Sheet"
+            onClick={handleDownloadMasterPdf}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#18A999] hover:bg-[#148f81] text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-xs"
+            title="Directly download clean Master Payroll PDF"
           >
-            <Printer className="w-4 h-4" />
-            <span>Save PDF (Master Sheet)</span>
+            <Download className="w-4 h-4" />
+            <span>Save PDF (Master)</span>
           </button>
 
-          {/* Save PDF / Print Worker Payslips */}
+          {/* Print Master Registry */}
+          <button
+            onClick={() => setShowMasterPrinter(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-[#123B5D] rounded-xl text-xs font-bold transition cursor-pointer shadow-xs"
+            title="Open printable Master Payroll Sheet"
+          >
+            <Printer className="w-4 h-4 text-[#18A999]" />
+            <span>Print Master</span>
+          </button>
+
+          {/* View / Print Worker Payslips */}
           <button
             onClick={handleOpenAllPayslips}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-[#123B5D] hover:bg-[#0e2e49] text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-xs"
-            title="Save as PDF o Print Worker Payslips"
+            title="Open printable worker payslips"
           >
             <FileText className="w-4 h-4 text-[#18A999]" />
-            <span>Save PDF (Worker Payslips)</span>
+            <span>Payslips ({payslipItems.length})</span>
           </button>
         </div>
       </div>
@@ -347,10 +368,10 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
         <div className="p-3.5 bg-[#EAF7FA] border border-[#18A999]/30 rounded-2xl flex flex-wrap items-center gap-4 text-xs">
           <span className="font-bold text-[#123B5D] flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-[#18A999]" />
-            Pumili ng Custom Cutoff Dates:
+            Select Custom Cutoff Dates:
           </span>
           <div className="flex items-center gap-2">
-            <label className="text-[#263238]/70">Simula (Start):</label>
+            <label className="text-[#263238]/70">Start Date:</label>
             <input
               type="date"
               value={customStartDate}
@@ -359,7 +380,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-[#263238]/70">Hanggang (End):</label>
+            <label className="text-[#263238]/70">End Date:</label>
             <input
               type="date"
               value={customEndDate}
@@ -368,7 +389,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             />
           </div>
           <span className="text-[11px] text-[#263238]/60">
-            Awtomatikong mag-a-adjust ang attendance at payslip batay sa napiling petsa.
+            Attendance and prorated duty calculations adjust automatically to the chosen range.
           </span>
         </div>
       )}
@@ -393,12 +414,13 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
           <p className="text-[11px] text-[#546e7a]">
             {laborAllocation.isProrated ? (
               <span>
-                Simula noong nag-umpisa ang project (<strong>{currentProject.startDate}</strong>), may{' '}
-                <strong className="text-[#18A999]">{laborAllocation.maxChargeableWindowDays} araw</strong> lang ng duty ang ikakaltas/idadagdag sa gastusin ng project na ito. Ang mga naunang araw bago ang start date ay hindi idadagdag sa project budget.
+                Labor expenses are charged strictly starting from the project start date (<strong>{currentProject.startDate}</strong>).
+                Only <strong className="text-[#18A999]">{laborAllocation.maxChargeableWindowDays} duty days</strong> are allocated to this site project.
+                Labor shifts prior to project start date are excluded from project expenditures.
               </span>
             ) : (
               <span>
-                Ang project ay buong aktibo sa linggong ito. Lahat ng <strong>{laborAllocation.maxChargeableWindowDays} araw</strong> ng duty ay kasama sa project labor expenses.
+                Project was active throughout this entire week. All <strong>{laborAllocation.maxChargeableWindowDays} duty days</strong> are included in project labor costing.
               </span>
             )}
           </p>
@@ -422,7 +444,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             <button
               onClick={handlePostLaborToProject}
               className="px-3.5 py-2 bg-[#18A999] hover:bg-[#148f81] text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-xs"
-              title="Idagdag ang labor expense na ito sa Expenses & Ledger ng project"
+              title="Add this labor expense to project Expense & Ledger"
             >
               Post to Expenses
             </button>
@@ -437,7 +459,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
         </div>
       )}
 
-      {/* Summary Banner - Navy #123B5D with Teal #18A999 */}
+      {/* Summary Banner */}
       <div className="bg-[#123B5D] text-white p-5 sm:p-6 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-4 shadow-md border border-[#0d2b45]">
         <div>
           <p className="text-teal-200/80 text-xs font-semibold uppercase tracking-wider">
@@ -486,7 +508,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
               <th className="py-3 px-3 text-right text-rose-700">Cash Advance</th>
               <th className="py-3 px-3 text-right">Net Take-Home</th>
               <th className="py-3 px-4 text-center">Status</th>
-              <th className="py-3 px-3 text-center">Payslip</th>
+              <th className="py-3 px-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -512,7 +534,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                             setShowCashAdvanceModal(true);
                           }}
                           className="text-[10px] text-amber-700 hover:underline cursor-pointer"
-                          title="Magdagdag ng cash advance"
+                          title="Add cash advance"
                         >
                           (+)
                         </button>
@@ -524,9 +546,9 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                           setShowCashAdvanceModal(true);
                         }}
                         className="text-[11px] text-slate-400 hover:text-amber-700 cursor-pointer"
-                        title="Mag-enter ng Cash Advance"
+                        title="Enter Cash Advance"
                       >
-                        + Bale
+                        + Cash Adv.
                       </button>
                     )}
                   </td>
@@ -546,13 +568,23 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                       {worker.paid ? 'Paid' : 'Mark as Paid'}
                     </button>
                   </td>
-                  <td className="py-3 px-3 text-center">
-                    <button
-                      onClick={() => handleOpenSinglePayslip(worker.workerId)}
-                      className="px-2.5 py-1 text-xs font-semibold rounded bg-[#EAF7FA] hover:bg-[#d5eff4] text-[#123B5D] transition cursor-pointer border border-[#cbeaf0]"
-                    >
-                      View Slip
-                    </button>
+                  <td className="py-3 px-3 text-center whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenSinglePayslip(worker.workerId)}
+                        className="px-2.5 py-1 text-xs font-semibold rounded bg-[#EAF7FA] hover:bg-[#d5eff4] text-[#123B5D] transition cursor-pointer border border-[#cbeaf0]"
+                        title="View & Print Payslip"
+                      >
+                        View Slip
+                      </button>
+                      <button
+                        onClick={() => handleDownloadSinglePayslipPdf(worker.workerId)}
+                        className="p-1 text-slate-500 hover:text-[#18A999] cursor-pointer"
+                        title="Direct Download Payslip PDF"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -571,9 +603,9 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                   <DollarSign className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">Cash Advance (Bale) Entry</h3>
+                  <h3 className="text-sm font-bold text-white">Cash Advance Entry</h3>
                   <p className="text-[11px] text-teal-100/70">
-                    Direktang ibabawas sa weekly payroll ng trabahador
+                    Directly deducted from weekly payroll take-home pay
                   </p>
                 </div>
               </div>
@@ -587,7 +619,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
 
             <form onSubmit={handleCreateCashAdvance} className="p-5 space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-[#123B5D] mb-1">Pumili ng Trabahador (Worker) *</label>
+                <label className="block font-bold text-[#123B5D] mb-1">Select Crew Member *</label>
                 <select
                   value={caWorkerId}
                   onChange={(e) => setCaWorkerId(e.target.value)}
@@ -603,7 +635,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-[#123B5D] mb-1">Halaga ng Cash Advance (₱) *</label>
+                  <label className="block font-bold text-[#123B5D] mb-1">Amount (PHP) *</label>
                   <input
                     type="number"
                     required
@@ -615,7 +647,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-[#123B5D] mb-1">Petsa (Date) *</label>
+                  <label className="block font-bold text-[#123B5D] mb-1">Date *</label>
                   <input
                     type="date"
                     required
@@ -627,19 +659,19 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-[#123B5D] mb-1">Dahilan / Notes (Reason) *</label>
+                <label className="block font-bold text-[#123B5D] mb-1">Reason / Notes *</label>
                 <input
                   type="text"
                   required
                   value={caReason}
                   onChange={(e) => setCaReason(e.target.value)}
-                  placeholder="Hal. Emergency pambili gamot, Tuition fee, Grocery allowance"
+                  placeholder="e.g. Emergency medical expense, Grocery advance"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-[#263238] focus:bg-white focus:outline-none focus:border-[#18A999]"
                 />
               </div>
 
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
-                Puna: Ang cash advance na ito ay awtomatikong mababawas sa Net Take-Home pay ng trabahador sa kasalukuyang cutoff period.
+                Note: This cash advance will be deducted automatically from the worker's net take-home wage envelope for the selected cutoff.
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
@@ -648,13 +680,13 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                   onClick={() => setShowCashAdvanceModal(false)}
                   className="px-4 py-2 border border-slate-200 rounded-xl text-[#263238] font-bold hover:bg-slate-50 cursor-pointer"
                 >
-                  Kanselahin
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-[#18A999] hover:bg-[#148f81] text-white font-bold rounded-xl cursor-pointer shadow-xs"
                 >
-                  I-Save ang Cash Advance
+                  Save Cash Advance
                 </button>
               </div>
             </form>
@@ -662,7 +694,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
         </div>
       )}
 
-      {/* Cash Advance Ledger Drawer / Modal */}
+      {/* Cash Advance Ledger Modal */}
       {showCashAdvanceLedger && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[85vh] flex flex-col">
@@ -670,9 +702,9 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
               <div className="flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-[#18A999]" />
                 <div>
-                  <h3 className="text-sm font-bold text-white">Cash Advance (Bale) Ledger &amp; History</h3>
+                  <h3 className="text-sm font-bold text-white">Cash Advance Ledger &amp; History</h3>
                   <p className="text-[11px] text-teal-100/70">
-                    Listahan ng lahat ng pautang at awtomatikong kaltas sa payroll
+                    Complete ledger of cash advances and automated payroll deductions
                   </p>
                 </div>
               </div>
@@ -687,7 +719,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             <div className="p-4 overflow-y-auto flex-1 space-y-3">
               {activeCashAdvances.length === 0 ? (
                 <div className="text-center py-8 text-slate-400 text-xs">
-                  Walang naka-rekord na Cash Advance sa kasalukuyan.
+                  No recorded cash advances found.
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
@@ -720,7 +752,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                         <button
                           onClick={() => handleDeleteCA(ca.id)}
                           className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
-                          title="Tanggalin ang entry"
+                          title="Delete entry"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -733,7 +765,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
 
             <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
               <span className="text-xs text-[#546e7a]">
-                Kabuuan (Total Unsettled Bale):{' '}
+                Total Unsettled Cash Advances:{' '}
                 <strong className="text-rose-600 font-mono">
                   ₱{activeCashAdvances.filter((c) => !c.deducted).reduce((s, c) => s + c.amount, 0).toLocaleString()}
                 </strong>
@@ -745,7 +777,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                 }}
                 className="px-3.5 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer"
               >
-                + Magdagdag ng Cash Advance
+                + Add Cash Advance
               </button>
             </div>
           </div>
