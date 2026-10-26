@@ -37,6 +37,7 @@ import { AttendanceRecord } from './components/AttendanceRecord';
 import { WeeklyPayrollView } from './components/WeeklyPayrollView';
 import { ExpensesView } from './components/ExpensesView';
 import { ReportsView } from './components/ReportsView';
+import { CompletedProjectsView } from './components/CompletedProjectsView';
 import { ReceiptScannerModal as ReceiptScanner } from './components/ReceiptScanner';
 import { NotificationModal as Notification } from './components/Notification';
 import { UserProfileModal as UserProfile } from './components/UserProfile';
@@ -86,7 +87,8 @@ export default function App() {
     getInitialData('4ace_projects', DEFAULT_PROJECTS)
   );
   const [currentProjectId, setCurrentProjectId] = useState<string>(() => {
-    return projects[0]?.id || DEFAULT_PROJECTS[0].id;
+    const active = projects.find((p) => p.status !== 'Completed' && p.status !== 'Cancelled');
+    return active ? active.id : (projects[0]?.id || DEFAULT_PROJECTS[0].id);
   });
   const [workers, setWorkers] = useState<Worker[]>(() =>
     getInitialData('4ace_workers', DEFAULT_WORKERS)
@@ -203,6 +205,7 @@ export default function App() {
 
   const activeProject =
     projects.find((p) => p.id === currentProjectId) ||
+    projects.find((p) => p.status !== 'Completed' && p.status !== 'Cancelled') ||
     projects[0] ||
     DEFAULT_PROJECTS[0];
 
@@ -330,6 +333,35 @@ export default function App() {
     setNotifications((prev) => [notif, ...prev]);
   };
 
+  const handleDeleteExpense = (id: string) => {
+    const target = expenses.find((e) => e.id === id);
+    if (!target) return;
+
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+
+    // Deduct from project spent total
+    if (target.projectId && target.amount) {
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === target.projectId
+            ? { ...p, spent: Math.max(0, (p.spent || 0) - Number(target.amount)) }
+            : p
+        )
+      );
+    }
+
+    const notif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      title: 'Expense Voucher Deleted',
+      message: `Voucher for "${target.description || 'expense'}" (₱${Number(target.amount).toLocaleString()}) removed from project ledger.`,
+      type: 'material',
+      timestamp: 'Just now',
+      read: false,
+      actionTab: 'expenses',
+    };
+    setNotifications((prev) => [notif, ...prev]);
+  };
+
   const handleUpdateExpenseStatus = (id: string, status?: ExpenseItem['status']) => {
     if (!status) return;
     setExpenses((prev) =>
@@ -358,6 +390,86 @@ export default function App() {
     setNotifications((prev) => [notif, ...prev]);
   };
 
+  // Completed Project Handler
+  const handleCompleteProject = (projId: string) => {
+    const target = projects.find((p) => p.id === projId);
+    setProjects((prev) =>
+      prev.map((p) => (p.id === projId ? { ...p, status: 'Completed' } : p))
+    );
+
+    // If current project is completed, switch active selector to another active project
+    const remainingActive = projects.filter(
+      (p) => p.id !== projId && p.status !== 'Completed' && p.status !== 'Cancelled'
+    );
+    if (remainingActive.length > 0) {
+      setCurrentProjectId(remainingActive[0].id);
+    }
+
+    const notif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      title: 'Project Status: Completed',
+      message: `Project ${target?.name || ''} marked as Completed and moved to Project History.`,
+      type: 'milestone',
+      timestamp: 'Just now',
+      read: false,
+      actionTab: 'archive',
+    };
+    setNotifications((prev) => [notif, ...prev]);
+  };
+
+  // Cancel Project Handler
+  const handleCancelProject = (projId: string) => {
+    const target = projects.find((p) => p.id === projId);
+    setProjects((prev) =>
+      prev.map((p) => (p.id === projId ? { ...p, status: 'Cancelled' } : p))
+    );
+
+    const remainingActive = projects.filter(
+      (p) => p.id !== projId && p.status !== 'Completed' && p.status !== 'Cancelled'
+    );
+    if (remainingActive.length > 0) {
+      setCurrentProjectId(remainingActive[0].id);
+    }
+
+    const notif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      title: 'Project Status: Cancelled',
+      message: `Project ${target?.name || ''} has been cancelled and moved to Project History.`,
+      type: 'general',
+      timestamp: 'Just now',
+      read: false,
+      actionTab: 'archive',
+    };
+    setNotifications((prev) => [notif, ...prev]);
+  };
+
+  // Reopen Project Handler
+  const handleReopenProject = (projId: string) => {
+    const target = projects.find((p) => p.id === projId);
+    setProjects((prev) =>
+      prev.map((p) => (p.id === projId ? { ...p, status: 'In Progress' } : p))
+    );
+    setCurrentProjectId(projId);
+    setActiveTab('dashboard');
+
+    const notif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      title: 'Project Reopened',
+      message: `Project ${target?.name || ''} restored to In Progress and returned to active site selector.`,
+      type: 'milestone',
+      timestamp: 'Just now',
+      read: false,
+      actionTab: 'dashboard',
+    };
+    setNotifications((prev) => [notif, ...prev]);
+  };
+
+  // Select project to view in reports
+  const handleSelectProjectForReports = (projId: string) => {
+    setCurrentProjectId(projId);
+    setActiveTab('reports');
+  };
+
   // Payroll Handlers
   const handleUpdatePayrollEntry = (updated: PayrollEntry) => {
     setPayroll((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -373,8 +485,8 @@ export default function App() {
     );
     const notif: NotificationItem = {
       id: `notif-${Date.now()}`,
-      title: 'Weekly Payroll Liquidated',
-      message: 'All worker wage envelopes marked as paid and disbursed for current cutoff.',
+      title: 'Weekly Payroll Disbursed',
+      message: 'All worker wage envelopes marked as paid and released for current cutoff.',
       type: 'payroll',
       timestamp: 'Just now',
       read: false,
@@ -436,7 +548,6 @@ export default function App() {
     };
     setWorkers((prev) => [...prev, worker]);
 
-    // Also initialize weekly payroll entry for this new worker
     const newPayrollEntry: PayrollEntry = {
       id: `pr-${Date.now()}`,
       workerId: worker.id,
@@ -568,7 +679,7 @@ export default function App() {
 
     const notif: NotificationItem = {
       id: `notif-${Date.now()}`,
-      title: 'Cash Advance (Bale) Recorded',
+      title: 'Cash Advance Recorded',
       message: `₱${ca.amount.toLocaleString()} cash advance recorded for ${ca.workerName}. Automatically deducted from weekly payroll.`,
       type: 'payroll',
       timestamp: 'Just now',
@@ -586,23 +697,6 @@ export default function App() {
     setCashAdvances((prev) =>
       prev.map((c) => (c.id === id ? { ...c, deducted: !c.deducted } : c))
     );
-  };
-
-  // Completed Project Handler (Can be clicked anytime, even if progress < 100%)
-  const handleCompleteProject = (projId: string) => {
-    setProjects((prev) =>
-      prev.map((p) => (p.id === projId ? { ...p, status: 'Completed' } : p))
-    );
-    const notif: NotificationItem = {
-      id: `notif-${Date.now()}`,
-      title: 'Project Status: Completed',
-      message: `Project ${activeProject.name} marked as Completed. Executive progress reports ready for turnover.`,
-      type: 'milestone',
-      timestamp: 'Just now',
-      read: false,
-      actionTab: 'reports',
-    };
-    setNotifications((prev) => [notif, ...prev]);
   };
 
   // Post Prorated Labor to Project Expenses
@@ -734,6 +828,7 @@ export default function App() {
             expenses={expenses}
             onAddExpense={handleAddExpense}
             onUpdateExpenseStatus={handleUpdateExpenseStatus}
+            onDeleteExpense={handleDeleteExpense}
             onOpenReceiptScanner={() => setShowScanner(true)}
           />
         )}
@@ -747,6 +842,17 @@ export default function App() {
             onCompleteProject={handleCompleteProject}
           />
         )}
+
+        {activeTab === 'archive' && (
+          <CompletedProjectsView
+            projects={projects}
+            expenses={expenses}
+            payroll={payroll}
+            onReopenProject={handleReopenProject}
+            onCancelProject={handleCancelProject}
+            onSelectProjectForReports={handleSelectProjectForReports}
+          />
+        )}
       </main>
 
       {/* Footer */}
@@ -754,13 +860,12 @@ export default function App() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <span className="text-white font-medium">4Ace Desk Project Site Management &amp; EMS</span>
           <div className="flex items-center gap-4 text-[11px]">
-            <a
-              href="/4ace-desk-fixed-source.zip"
-              download="4ace-desk-fixed-source.zip"
-              className="text-[#18A999] hover:text-[#a2f0e7] font-bold"
+            <button
+              onClick={() => setActiveTab('archive')}
+              className="text-[#18A999] hover:text-[#a2f0e7] font-bold cursor-pointer"
             >
-              Download Clean ZIP Archive
-            </a>
+              Project History &amp; Archive
+            </button>
             <button
               onClick={() => setShowGuide(true)}
               className="text-slate-300 hover:text-white cursor-pointer"
