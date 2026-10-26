@@ -49,7 +49,7 @@ var projects = [
     spent: 62e4,
     startDate: "2026-08-15",
     targetDate: "2027-02-28",
-    supervisor: "Engr. Mark Santos",
+    supervisor: "Project Engineer",
     progress: 33.5,
     description: "Reinforced concrete framing, steel deck casting, and MEP roughing-ins."
   }
@@ -123,7 +123,7 @@ var priorities = [
     completed: false,
     priority: "urgent",
     siteName: "Residential Renovation",
-    assignedTo: "Engr. Mark Santos",
+    assignedTo: "Project Engineer",
     dueDate: "Today, Morning",
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
   }
