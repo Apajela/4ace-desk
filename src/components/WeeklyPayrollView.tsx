@@ -18,7 +18,7 @@ import {
   HelpCircle,
   Building,
 } from 'lucide-react';
-import { Worker, Project, PayrollEntry, PayrollItemData, CashAdvance } from '../types';
+import { Worker, Project, PayrollEntry, PayrollItemData, CashAdvance, UserProfile } from '../types';
 import { DEFAULT_WORKERS, DEFAULT_PAYROLL, DEFAULT_COMPANY, DEFAULT_PROJECTS, DEFAULT_CASH_ADVANCES } from '../data/defaultData';
 import { Payslip } from './Payslip';
 import { PayrollMasterPrinter } from './PayrollMasterPrinter';
@@ -37,6 +37,7 @@ export interface WeeklyPayrollViewProps {
   onMarkAllPaid?: () => void;
   onLogAttendanceClick?: () => void;
   onPostLaborExpense?: (amount: number, description: string) => void;
+  currentUser?: UserProfile | null;
 }
 
 interface CutoffOption {
@@ -85,6 +86,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
   onMarkAllPaid,
   onLogAttendanceClick,
   onPostLaborExpense,
+  currentUser,
 }) => {
   // Cutoff selection state
   const [selectedCutoffId, setSelectedCutoffId] = useState<string>('current');
@@ -804,6 +806,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
         company={DEFAULT_COMPANY}
         payroll={activePayroll}
         cutoffPeriod={cutoffLabel}
+        currentUser={currentUser}
       />
     </div>
   );

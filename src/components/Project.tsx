@@ -28,7 +28,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const [budget, setBudget] = useState<number>(initialProject?.budget || 2800000);
   const [startDate, setStartDate] = useState(initialProject?.startDate || new Date().toISOString().split('T')[0]);
   const [targetDate, setTargetDate] = useState(initialProject?.targetDate || '2026-12-31');
-  const [supervisor, setSupervisor] = useState(initialProject?.supervisor || 'Engr. Arriana Daoag');
+  const [supervisor, setSupervisor] = useState(initialProject?.supervisor || 'Mang Nestor Dela Cruz (Foreman)');
   const [description, setDescription] = useState(initialProject?.description || '');
 
   if (!isOpen) return null;

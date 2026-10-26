@@ -6,7 +6,7 @@ import {
   FileSpreadsheet,
   Banknote,
 } from 'lucide-react';
-import { Project, CompanySettings, PayrollEntry } from '../types';
+import { Project, CompanySettings, PayrollEntry, UserProfile } from '../types';
 import { triggerBrowserPrint } from '../utils/printReport';
 import { exportPayrollMasterPdf } from '../utils/pdfExport';
 
@@ -17,6 +17,7 @@ export interface PayrollMasterPrinterProps {
   company: CompanySettings;
   payroll: PayrollEntry[];
   cutoffPeriod: string;
+  currentUser?: UserProfile | null;
 }
 
 export const PayrollMasterPrinter: React.FC<PayrollMasterPrinterProps> = ({
@@ -26,6 +27,7 @@ export const PayrollMasterPrinter: React.FC<PayrollMasterPrinterProps> = ({
   company,
   payroll,
   cutoffPeriod,
+  currentUser,
 }) => {
   if (!isOpen) return null;
 
@@ -296,20 +298,20 @@ export const PayrollMasterPrinter: React.FC<PayrollMasterPrinterProps> = ({
               <div>
                 <span className="text-[10px] uppercase font-bold text-[#263238]/60 block mb-8">Prepared By:</span>
                 <div className="border-b border-slate-800 mx-4" />
-                <strong className="block text-[#123B5D] mt-1">Site Timekeeper / Payroll Clerk</strong>
-                <span className="text-[10px] text-[#263238]/60">Date Verified</span>
+                {currentUser?.signaturePreparedBy && <strong className="block text-[#123B5D] mt-1">{currentUser.signaturePreparedBy}</strong>}
+                {currentUser?.signaturePreparedTitle && <span className="text-[10px] text-[#263238]/60">{currentUser.signaturePreparedTitle}</span>}
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-[#263238]/60 block mb-8">Checked &amp; Audited By:</span>
                 <div className="border-b border-slate-800 mx-4" />
-                <strong className="block text-[#123B5D] mt-1">{currentProject.supervisor}</strong>
-                <span className="text-[10px] text-[#263238]/60">Resident Project Engineer</span>
+                {currentUser?.signatureCheckedBy !== undefined ? (currentUser.signatureCheckedBy && <strong className="block text-[#123B5D] mt-1">{currentUser.signatureCheckedBy}</strong>) : <strong className="block text-[#123B5D] mt-1">{currentProject.supervisor}</strong>}
+                {currentUser?.signatureCheckedTitle && <span className="text-[10px] text-[#263238]/60">{currentUser.signatureCheckedTitle}</span>}
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-[#263238]/60 block mb-8">Approved &amp; Released By:</span>
                 <div className="border-b border-slate-800 mx-4" />
-                <strong className="block text-[#123B5D] mt-1">Engr. Arriana Daoag</strong>
-                <span className="text-[10px] text-[#263238]/60">Managing Contractor / PCAB Signatory</span>
+                {(currentUser?.signatureApprovedBy || currentUser?.name) && <strong className="block text-[#123B5D] mt-1">{currentUser?.signatureApprovedBy || currentUser?.name}</strong>}
+                {currentUser?.signatureApprovedTitle && <span className="text-[10px] text-[#263238]/60">{currentUser.signatureApprovedTitle}</span>}
               </div>
             </div>
 

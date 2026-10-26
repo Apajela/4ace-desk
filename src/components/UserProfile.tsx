@@ -5,7 +5,6 @@ import {
   Building,
   Mail,
   Phone,
-  Award,
   Save,
   CheckCircle2,
   Briefcase,
@@ -23,7 +22,19 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onClose,
   onSaveProfile,
 }) => {
-  const [formData, setFormData] = useState<UserProfileType>({ ...userProfile });
+  const [formData, setFormData] = useState<UserProfileType>({
+    ...userProfile,
+    avatarUrl: '',
+    signaturePreparedBy: userProfile.signaturePreparedBy ?? 'Site Timekeeper / Payroll Clerk',
+    signaturePreparedTitle: userProfile.signaturePreparedTitle ?? 'Date Verified',
+    signatureCheckedBy: userProfile.signatureCheckedBy ?? '',
+    signatureCheckedTitle: userProfile.signatureCheckedTitle ?? 'Resident Project Engineer',
+    signatureApprovedBy: userProfile.signatureApprovedBy ?? userProfile.name,
+    signatureApprovedTitle: userProfile.signatureApprovedTitle ?? 'Managing Contractor / PCAB Signatory',
+    signatureEngineerName: userProfile.signatureEngineerName ?? 'Engr. Mark Santos',
+    signatureEngineerTitle: userProfile.signatureEngineerTitle ?? 'Project Engineer & Estimator',
+    signatureClientTitle: userProfile.signatureClientTitle ?? 'Client / Project Owner (Conforme)',
+  });
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -62,20 +73,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs bg-white text-[#263238]">
           <div className="flex items-center gap-4 p-3.5 bg-[#EAF7FA] rounded-xl border border-slate-200">
-            <img
-              src={formData.avatarUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80'}
-              alt={formData.name}
-              className="w-14 h-14 rounded-full object-cover border-2 border-[#18A999] shadow-xs shrink-0"
-            />
+            <div aria-label="No profile photo" className="w-14 h-14 rounded-full border-2 border-[#18A999] bg-white shadow-xs shrink-0 flex items-center justify-center text-slate-400">
+              <User className="w-7 h-7" />
+            </div>
             <div className="min-w-0">
               <h4 className="font-bold text-[#123B5D] text-sm truncate">{formData.name}</h4>
               <p className="text-[11px] text-[#263238]/70 truncate">{formData.title || formData.role}</p>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-[#18A999] border border-[#18A999]/30">
                   {formData.accessLevel}
-                </span>
-                <span className="text-[10px] text-[#263238]/60 font-mono">
-                  {formData.prcLicense || formData.licenseNumber}
                 </span>
               </div>
             </div>
@@ -108,33 +114,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   className="w-full pl-9 pr-3 py-1.5 border border-slate-200 rounded-lg text-[#263238] font-semibold bg-slate-50 focus:bg-white focus:outline-none focus:border-[#18A999]"
                 />
               </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block font-bold text-[#123B5D] mb-1">PRC License No. *</label>
-              <div className="relative">
-                <Award className="w-3.5 h-3.5 text-[#18A999] absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  value={formData.prcLicense || ''}
-                  onChange={(e) => setFormData({ ...formData, prcLicense: e.target.value })}
-                  placeholder="e.g. PRC-CE-0149204"
-                  className="w-full pl-9 pr-3 py-1.5 border border-slate-200 rounded-lg text-[#263238] font-mono font-bold bg-slate-50 focus:bg-white focus:outline-none focus:border-[#18A999]"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-bold text-[#123B5D] mb-1">PCAB License Number</label>
-              <input
-                type="text"
-                value={formData.licenseNumber || ''}
-                onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
-                placeholder="e.g. PCAB License #84920-AAA"
-                className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-[#263238] font-mono font-medium bg-slate-50 focus:bg-white focus:outline-none focus:border-[#18A999]"
-              />
             </div>
           </div>
 
@@ -189,6 +168,35 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               onChange={(e) => setFormData({ ...formData, companyAddress: e.target.value })}
               className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-[#263238] bg-slate-50 focus:bg-white focus:outline-none focus:border-[#18A999]"
             />
+          </div>
+
+
+          <div className="pt-3 border-t border-slate-200 space-y-3">
+            <div>
+              <h4 className="font-bold text-[#123B5D] text-sm">Report Signatories (Editable)</h4>
+              <p className="text-[11px] text-slate-500 mt-1">Leave any field blank to remove that name or designation from reports.</p>
+            </div>
+            {([
+              ['signaturePreparedBy', 'Prepared By — Name / Role'],
+              ['signaturePreparedTitle', 'Prepared By — Date / Designation'],
+              ['signatureCheckedBy', 'Checked & Audited By — Name'],
+              ['signatureCheckedTitle', 'Checked & Audited By — Designation'],
+              ['signatureApprovedBy', 'Approved & Released By — Name'],
+              ['signatureApprovedTitle', 'Approved & Released By — Designation'],
+              ['signatureEngineerName', 'Project Engineer — Name'],
+              ['signatureEngineerTitle', 'Project Engineer — Designation'],
+              ['signatureClientTitle', 'Client / Project Owner — Designation'],
+            ] as const).map(([key, label]) => (
+              <div key={key}>
+                <label className="block font-bold text-[#123B5D] mb-1">{label}</label>
+                <input
+                  type="text"
+                  value={formData[key] || ''}
+                  onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[#263238] bg-slate-50 focus:bg-white focus:outline-none focus:border-[#18A999]"
+                />
+              </div>
+            ))}
           </div>
 
           {savedSuccess && (

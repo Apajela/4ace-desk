@@ -4,6 +4,7 @@ import {
   ExpenseItem,
   PayrollEntry,
   SitePriorityItem,
+  UserProfile,
 } from '../types';
 import {
   TrendingUp,
@@ -32,6 +33,8 @@ export interface ReportsViewProps {
   payroll: PayrollEntry[];
   priorities?: SitePriorityItem[];
   onCompleteProject?: (projectId: string) => void;
+  onCancelProject?: (projectId: string) => void;
+  currentUser?: UserProfile | null;
 }
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
@@ -40,6 +43,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   payroll,
   priorities = [],
   onCompleteProject,
+  onCancelProject,
+  currentUser,
 }) => {
   const [activeTab, setActiveTab] = useState<'executive' | 'financial' | 'labor' | 'materials' | 'daily_log'>('executive');
   const [completedSuccessToast, setCompletedSuccessToast] = useState(false);
@@ -74,7 +79,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   // Direct PDF download action
   const handleDownloadPdf = () => {
-    exportExecutiveReportPdf(currentProject, laborAllocation, projectExpenses);
+    exportExecutiveReportPdf(currentProject, laborAllocation, projectExpenses, currentUser || undefined);
   };
 
   // Mark as Completed Project Action (Allowed anytime, even if progress < 100%)
@@ -86,6 +91,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     setTimeout(() => {
       setCompletedSuccessToast(false);
     }, 6000);
+  };
+
+  const handleCancelProject = () => {
+    if (window.confirm(`Cancel project "${currentProject.name}"? It will be removed from the active project list.`)) {
+      onCancelProject?.(currentProject.id);
+    }
   };
 
   return (
@@ -127,6 +138,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           >
             <CheckCircle2 className="w-4 h-4 text-[#18A999]" />
             <span>Mark as Completed Project</span>
+          </button>
+          <button
+            onClick={handleCancelProject}
+            disabled={currentProject.status === 'Completed' || currentProject.status === 'Cancelled'}
+            className="flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
+            title="Cancel this project and remove it from active projects"
+          >
+            <span>Cancel Project</span>
           </button>
 
           {/* Dedicated Save PDF Button (Direct Download) */}
@@ -329,18 +348,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <div className="pt-6 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs text-center">
               <div className="space-y-1">
                 <div className="h-10 border-b border-slate-300"></div>
-                <p className="font-bold text-[#123B5D]">Engr. Arriana Daoag</p>
-                <p className="text-[10px] text-slate-500">Managing Contractor (PRC-CE-0149204)</p>
+                {(currentUser?.signatureApprovedBy ?? currentUser?.name) && <p className="font-bold text-[#123B5D]">{currentUser?.signatureApprovedBy || currentUser?.name}</p>}
+                {currentUser?.signatureApprovedTitle && <p className="text-[10px] text-slate-500">{currentUser.signatureApprovedTitle}</p>}
               </div>
               <div className="space-y-1">
                 <div className="h-10 border-b border-slate-300"></div>
-                <p className="font-bold text-[#123B5D]">Engr. Mark Santos</p>
-                <p className="text-[10px] text-slate-500">Project Engineer &amp; Estimator</p>
+                {currentUser?.signatureEngineerName && <p className="font-bold text-[#123B5D]">{currentUser.signatureEngineerName}</p>}
+                {currentUser?.signatureEngineerTitle && <p className="text-[10px] text-slate-500">{currentUser.signatureEngineerTitle}</p>}
               </div>
               <div className="space-y-1">
                 <div className="h-10 border-b border-slate-300"></div>
                 <p className="font-bold text-[#123B5D]">{currentProject.client}</p>
-                <p className="text-[10px] text-slate-500">Client / Project Owner (Conforme)</p>
+                {currentUser?.signatureClientTitle && <p className="text-[10px] text-slate-500">{currentUser.signatureClientTitle}</p>}
               </div>
             </div>
           </div>
@@ -667,14 +686,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   weather: 'Fair (29°C)',
                   manpower: '8 Crew On-Site',
                   activity: 'CHB laying for north elevation and MEP conduit roughing-in.',
-                  supervisor: 'Engr. Arriana Daoag',
+                  supervisor: currentUser?.name || '',
                 },
                 {
                   date: '2026-10-23',
                   weather: 'Isolated Showers (28°C)',
                   manpower: '7 Crew On-Site',
                   activity: 'Formwork inspection and scaffolding brace installation.',
-                  supervisor: 'Engr. Mark Santos',
+                  supervisor: currentUser?.signatureEngineerName || '',
                 },
               ].map((log, i) => (
                 <div key={i} className="p-4 bg-[#EAF7FA]/40 border border-slate-200 rounded-xl space-y-1.5 text-xs">

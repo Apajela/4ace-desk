@@ -245,7 +245,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 aria-label="Active Project"
                 className="w-full px-4 py-2.5 bg-[#0e2e49] border border-[#1a4c75] rounded-xl text-white font-bold text-sm focus:outline-none focus:border-[#18A999] transition-colors cursor-pointer pr-10 shadow-inner"
               >
-                {allProjects.map((p) => (
+                {allProjects.filter((p) => p.status !== 'Completed' && p.status !== 'Cancelled').map((p) => (
                   <option key={p.id} value={p.id} className="bg-[#123B5D] text-white py-2">
                     {p.name} {p.code ? `(${p.code})` : ''} - Budget: {formatCurrency(p.budget)}
                   </option>
