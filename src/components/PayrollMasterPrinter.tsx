@@ -1,12 +1,14 @@
 import React from 'react';
 import {
   Printer,
+  Download,
   X,
   FileSpreadsheet,
   Banknote,
 } from 'lucide-react';
 import { Project, CompanySettings, PayrollEntry } from '../types';
 import { triggerBrowserPrint } from '../utils/printReport';
+import { exportPayrollMasterPdf } from '../utils/pdfExport';
 
 export interface PayrollMasterPrinterProps {
   isOpen: boolean;
@@ -57,6 +59,10 @@ export const PayrollMasterPrinter: React.FC<PayrollMasterPrinterProps> = ({
     triggerBrowserPrint();
   };
 
+  const handleDownloadPdf = () => {
+    exportPayrollMasterPdf(currentProject, company, payroll, cutoffPeriod);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="relative w-full max-w-5xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
@@ -83,12 +89,20 @@ export const PayrollMasterPrinter: React.FC<PayrollMasterPrinterProps> = ({
 
           <div className="flex items-center gap-2.5">
             <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#18A999] hover:bg-[#148f81] text-white font-bold text-xs shadow-sm transition-colors cursor-pointer"
-              title="Save as PDF or Print Registry"
+              onClick={handleDownloadPdf}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#18A999] hover:bg-[#148f81] text-white font-bold text-xs shadow-sm transition-colors cursor-pointer"
+              title="Directly download PDF file"
             >
-              <Printer className="w-4 h-4" />
-              <span>Save PDF / Print Registry</span>
+              <Download className="w-4 h-4" />
+              <span>Save PDF</span>
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#123B5D] font-bold text-xs shadow-sm transition-colors cursor-pointer"
+              title="Open browser print preview"
+            >
+              <Printer className="w-4 h-4 text-[#18A999]" />
+              <span>Print Registry</span>
             </button>
             <button
               onClick={onClose}
@@ -301,7 +315,7 @@ export const PayrollMasterPrinter: React.FC<PayrollMasterPrinterProps> = ({
 
             <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-[#263238]/60">
               <span>DOLE DO 13 Compliant Labor Record | 4Ace Desk ERP</span>
-              <span>Page 1 of 1</span>
+              <span>Official Master Record</span>
             </div>
           </div>
         </div>
@@ -309,7 +323,7 @@ export const PayrollMasterPrinter: React.FC<PayrollMasterPrinterProps> = ({
         {/* Modal Footer Controls */}
         <div className="px-6 py-3 bg-white border-t border-slate-200 flex items-center justify-between print:hidden">
           <span className="text-xs text-[#263238]/70">
-            Click &quot;Print Payroll Master Registry&quot; to print directly or save as PDF via your browser.
+            Click &quot;Save PDF&quot; to download the file directly, or &quot;Print Registry&quot; to open the browser print dialog.
           </span>
           <button
             onClick={onClose}
