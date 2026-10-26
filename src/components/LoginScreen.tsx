@@ -52,7 +52,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     const cleanPass = password.trim();
 
     if (!cleanUser || !cleanPass) {
-      setErrorMessage('Pakilagay ang Username at Password.');
+      setErrorMessage('Please enter both Username and Password.');
       return;
     }
 
@@ -64,7 +64,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     );
 
     if (!matched) {
-      setErrorMessage('Hindi nahanap ang username. Pakisuri o mag-Create ng bagong Account.');
+      setErrorMessage('Username not found. Please verify credentials or create a new Account.');
       return;
     }
 
@@ -76,7 +76,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       cleanPass === '1234';
 
     if (!isPassValid) {
-      setErrorMessage('Maling password. Pakisuri muli (Default: admin123 o 1234).');
+      setErrorMessage('Incorrect password. Please verify (Default: admin123 or 1234).');
       return;
     }
 
@@ -89,14 +89,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
     const cleanUser = regUsername.trim().toLowerCase();
     if (!regName.trim() || !cleanUser || !regPassword.trim()) {
-      setErrorMessage('Pakipunan ang lahat ng kailangang impormasyon.');
+      setErrorMessage('Please fill in all required fields.');
       return;
     }
 
     // Check if username is already taken
     const exists = users.some((u) => u.username.toLowerCase() === cleanUser);
     if (exists) {
-      setErrorMessage('May gumagamit na ng username na ito. Pumili ng iba.');
+      setErrorMessage('This username is already taken. Please choose another.');
       return;
     }
 
@@ -206,7 +206,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           {regSuccess && (
             <div className="p-3 bg-teal-50 border border-[#18A999]/30 rounded-xl text-[#0d786d] text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0 text-[#18A999]" />
-              <span>Account created successfully with Full Access! Naglo-log in na...</span>
+              <span>Account created successfully with Full Access! Logging in...</span>
             </div>
           )}
 
@@ -224,7 +224,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Ilagay ang iyong username (e.g. arriana, marksantos)"
+                    placeholder="Enter your username (e.g. arriana, marksantos)"
                     className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-[#263238] focus:bg-white focus:outline-none focus:border-[#18A999] transition"
                   />
                 </div>
@@ -241,7 +241,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Ilagay ang iyong password"
+                    placeholder="Enter your password"
                     className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-[#263238] focus:bg-white focus:outline-none focus:border-[#18A999] transition"
                   />
                   <button
@@ -262,7 +262,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     onChange={(e) => setRememberSession(e.target.checked)}
                     className="rounded border-slate-300 text-[#18A999] focus:ring-[#18A999] h-3.5 w-3.5"
                   />
-                  <span>Tandaan ang sesyon (Remember me)</span>
+                  <span>Remember session</span>
                 </label>
                 <span className="text-[10px] text-[#18A999] font-bold">Full Access Privilege</span>
               </div>
@@ -282,9 +282,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   <span>Available Full Access Accounts:</span>
                 </div>
                 <div className="flex flex-col gap-0.5 text-[#263238]/80 font-mono text-[10px]">
-                  <span>• User: <strong>arriana</strong> | Pass: <strong>admin123</strong> (o 1234)</span>
-                  <span>• User: <strong>marksantos</strong> | Pass: <strong>admin123</strong> (o 1234)</span>
-                  <span>• O i-click ang <strong>"Create Account"</strong> sa itaas para mag-add ng bagong admin.</span>
+                  <span>• User: <strong>arriana</strong> | Pass: <strong>admin123</strong> (or 1234)</span>
+                  <span>• User: <strong>marksantos</strong> | Pass: <strong>admin123</strong> (or 1234)</span>
+                  <span>• Or click <strong>&quot;Create Account&quot;</strong> above to register a new administrator.</span>
                 </div>
               </div>
             </form>
@@ -295,19 +295,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             <form onSubmit={handleRegisterSubmit} className="space-y-3.5 text-xs">
               <div className="p-2.5 bg-teal-50 border border-[#18A999]/30 rounded-xl text-[11px] text-[#0d786d] flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-[#18A999] shrink-0" />
-                <span>Lahat ng bagong account ay awtomatikong bibigyan ng <strong>Full Access (Admin)</strong> privileges.</span>
+                <span>All new user accounts are automatically provisioned with <strong>Full Access (Admin)</strong> privileges.</span>
               </div>
 
               <div>
                 <label className="block font-bold text-[#123B5D] mb-1">
-                  Pangalan (Full Name) *
+                  Full Name *
                 </label>
                 <input
                   type="text"
                   required
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
-                  placeholder="Hal. Engr. Juan Dela Cruz"
+                  placeholder="e.g. Engr. Juan Dela Cruz"
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-[#263238] focus:bg-white focus:outline-none focus:border-[#18A999]"
                 />
               </div>
@@ -322,7 +322,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     required
                     value={regUsername}
                     onChange={(e) => setRegUsername(e.target.value)}
-                    placeholder="Hal. juandc"
+                    placeholder="e.g. juandc"
                     className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-[#263238] focus:bg-white focus:outline-none focus:border-[#18A999]"
                   />
                 </div>
@@ -350,20 +350,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   required
                   value={regRole}
                   onChange={(e) => setRegRole(e.target.value)}
-                  placeholder="Hal. Managing Contractor, Senior Project Engineer"
+                  placeholder="e.g. Managing Contractor, Senior Project Engineer"
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-[#263238] focus:bg-white focus:outline-none focus:border-[#18A999]"
                 />
               </div>
 
               <div>
                 <label className="block font-bold text-[#123B5D] mb-1">
-                  PRC License / ID (Opsyonal)
+                  PRC License / ID (Optional)
                 </label>
                 <input
                   type="text"
                   value={regPrc}
                   onChange={(e) => setRegPrc(e.target.value)}
-                  placeholder="Hal. PRC-CE-019283"
+                  placeholder="e.g. PRC-CE-019283"
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-[#263238] focus:bg-white focus:outline-none focus:border-[#18A999]"
                 />
               </div>
