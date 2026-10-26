@@ -638,8 +638,26 @@ export default function App() {
 
   // User Profile & Auth Handlers
   const handleSaveProfile = (prof: UserProfileType) => {
-    setCurrentUser(prof);
-    setUsers((prev) => prev.map((u) => (u.id === prof.id ? prof : u)));
+    const previousName = currentUser?.name?.trim();
+    const nextProfile = {
+      ...prof,
+      signatureApprovedBy:
+        !prof.signatureApprovedBy || prof.signatureApprovedBy.trim() === previousName
+          ? prof.name
+          : prof.signatureApprovedBy,
+    };
+    setCurrentUser(nextProfile);
+    setUsers((prev) => prev.map((u) => (u.id === nextProfile.id ? nextProfile : u)));
+    if (previousName && previousName !== nextProfile.name.trim()) {
+      setProjects((prev) => prev.map((p) => ({
+        ...p,
+        supervisor: p.supervisor?.trim() === previousName ? nextProfile.name : p.supervisor,
+      })));
+      setAttendance((prev) => prev.map((record) => ({
+        ...record,
+        verifiedBy: record.verifiedBy?.trim() === previousName ? nextProfile.name : record.verifiedBy,
+      })));
+    }
   };
 
   const handleCreateUser = (newUser: UserProfileType) => {
@@ -819,6 +837,7 @@ export default function App() {
             onMarkAllPaid={handleMarkAllPayrollPaid}
             onLogAttendanceClick={() => setShowAttendanceModal(true)}
             onPostLaborExpense={handlePostLaborExpense}
+            currentUser={currentUser}
           />
         )}
 
@@ -840,6 +859,8 @@ export default function App() {
             payroll={payroll}
             priorities={priorities}
             onCompleteProject={handleCompleteProject}
+            onCancelProject={handleCancelProject}
+            currentUser={currentUser}
           />
         )}
 

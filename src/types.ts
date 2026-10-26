@@ -17,6 +17,15 @@ export interface UserProfile {
   prcLicense?: string;
   phone?: string;
   title?: string;
+  signaturePreparedBy?: string;
+  signaturePreparedTitle?: string;
+  signatureCheckedBy?: string;
+  signatureCheckedTitle?: string;
+  signatureApprovedBy?: string;
+  signatureApprovedTitle?: string;
+  signatureEngineerName?: string;
+  signatureEngineerTitle?: string;
+  signatureClientTitle?: string;
 }
 
 export interface CompanySettings {
