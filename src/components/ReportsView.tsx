@@ -344,26 +344,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               ))}
             </div>
 
-            {/* Engineering Sign-off Block for Print */}
-            <div className="pt-6 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs text-center">
-              <div className="space-y-1">
-                <div className="h-10 border-b border-slate-300"></div>
-                {(currentUser?.signatureApprovedBy ?? currentUser?.name) && <p className="font-bold text-[#123B5D]">{currentUser?.signatureApprovedBy || currentUser?.name}</p>}
-                {currentUser?.signatureApprovedTitle && <p className="text-[10px] text-slate-500">{currentUser.signatureApprovedTitle}</p>}
-              </div>
-              <div className="space-y-1">
-                <div className="h-10 border-b border-slate-300"></div>
-                {currentUser?.signatureEngineerName && <p className="font-bold text-[#123B5D]">{currentUser.signatureEngineerName}</p>}
-                {currentUser?.signatureEngineerTitle && <p className="text-[10px] text-slate-500">{currentUser.signatureEngineerTitle}</p>}
-              </div>
-              <div className="space-y-1">
-                <div className="h-10 border-b border-slate-300"></div>
-                <p className="font-bold text-[#123B5D]">{currentProject.client}</p>
-                {currentUser?.signatureClientTitle && <p className="text-[10px] text-slate-500">{currentUser.signatureClientTitle}</p>}
-              </div>
+            {/* Minimal report sign-off: Prepared By and Client only */}
+            <div className="pt-6 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-8 text-xs text-center">
+              <div className="space-y-1"><div className="h-10 border-b border-slate-300"></div><p className="font-bold text-[#123B5D]">{currentUser?.signaturePreparedBy || currentUser?.name || ''}</p><p className="text-[10px] text-slate-500">Prepared By</p></div>
+              <div className="space-y-1"><div className="h-10 border-b border-slate-300"></div><p className="font-bold text-[#123B5D]">{currentProject.client}</p><p className="text-[10px] text-slate-500">Client</p></div>
+            </div>
             </div>
           </div>
-        </div>
       )}
 
       {/* TAB 2: FINANCIAL & BOQ VARIANCE */}

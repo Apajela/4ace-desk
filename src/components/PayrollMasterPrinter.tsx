@@ -293,25 +293,12 @@ export const PayrollMasterPrinter: React.FC<PayrollMasterPrinterProps> = ({
               </div>
             </div>
 
-            {/* Certification Sign-Offs */}
-            <div className="pt-6 border-t border-slate-200 grid grid-cols-3 gap-6 text-xs text-center">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-[#263238]/60 block mb-8">Prepared By:</span>
-                <div className="border-b border-slate-800 mx-4" />
+            {/* Payroll signature: Prepared By only */}
+            <div className="pt-6 border-t border-slate-200 grid grid-cols-1 gap-6 text-xs text-center">
+              <div className="max-w-sm mx-auto w-full">
+                <div className="border-b border-slate-800 mx-4 mb-8" />
                 {currentUser?.signaturePreparedBy && <strong className="block text-[#123B5D] mt-1">{currentUser.signaturePreparedBy}</strong>}
-                {currentUser?.signaturePreparedTitle && <span className="text-[10px] text-[#263238]/60">{currentUser.signaturePreparedTitle}</span>}
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-[#263238]/60 block mb-8">Checked &amp; Audited By:</span>
-                <div className="border-b border-slate-800 mx-4" />
-                {currentUser?.signatureCheckedBy !== undefined ? (currentUser.signatureCheckedBy && <strong className="block text-[#123B5D] mt-1">{currentUser.signatureCheckedBy}</strong>) : <strong className="block text-[#123B5D] mt-1">{currentProject.supervisor}</strong>}
-                {currentUser?.signatureCheckedTitle && <span className="text-[10px] text-[#263238]/60">{currentUser.signatureCheckedTitle}</span>}
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-[#263238]/60 block mb-8">Approved &amp; Released By:</span>
-                <div className="border-b border-slate-800 mx-4" />
-                {(currentUser?.signatureApprovedBy || currentUser?.name) && <strong className="block text-[#123B5D] mt-1">{currentUser?.signatureApprovedBy || currentUser?.name}</strong>}
-                {currentUser?.signatureApprovedTitle && <span className="text-[10px] text-[#263238]/60">{currentUser.signatureApprovedTitle}</span>}
+                <span className="text-[10px] uppercase font-bold text-[#263238]/60 block">Prepared By</span>
               </div>
             </div>
 

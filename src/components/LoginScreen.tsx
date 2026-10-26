@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   HardHat,
   Eye,
   EyeOff,
   ShieldCheck,
   AlertCircle,
-  KeyRound,
   User,
   UserPlus,
   LogIn,
@@ -34,6 +33,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberSession, setRememberSession] = useState(true);
+  const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('4ace_remembered_credentials');
+      if (saved) {
+        const credentials = JSON.parse(saved) as { username?: string; password?: string };
+        setUsername(credentials.username || ''); setPassword(credentials.password || '');
+        setRememberSession(Boolean(credentials.username && credentials.password));
+        setHasSavedCredentials(Boolean(credentials.username && credentials.password));
+      }
+    } catch { /* browser storage may be unavailable */ }
+  }, []);
   const [errorMessage, setErrorMessage] = useState('');
 
   // Register / Add User state
@@ -41,7 +52,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [regRole, setRegRole] = useState('Project Engineer / Site In-Charge');
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regPrc, setRegPrc] = useState('');
   const [regSuccess, setRegSuccess] = useState(false);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -64,23 +74,27 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     );
 
     if (!matched) {
-      setErrorMessage('Username not found. Please verify credentials or create a new Account.');
+      setErrorMessage('Incorrect username.');
       return;
     }
 
     // Verify password or PIN
-    const isPassValid =
-      cleanPass === matched.password ||
-      cleanPass === matched.pin ||
-      cleanPass === 'admin123' ||
-      cleanPass === '1234';
+    const isPassValid = cleanPass === matched.password || cleanPass === matched.pin;
 
     if (!isPassValid) {
-      setErrorMessage('Incorrect password. Please verify (Default: admin123 or 1234).');
+      setErrorMessage('Incorrect password.');
       return;
     }
 
+    try { if (rememberSession) localStorage.setItem('4ace_remembered_credentials', JSON.stringify({ username: cleanUser, password: cleanPass })); else localStorage.removeItem('4ace_remembered_credentials'); } catch {}
+    setHasSavedCredentials(rememberSession);
     onLogin(matched, rememberSession);
+  };
+
+  const handleUseSavedLogin = () => {
+    const matched = users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase() && u.password === password);
+    if (!matched) { setErrorMessage('Incorrect username or password.'); return; }
+    onLogin(matched, true);
   };
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
@@ -117,12 +131,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       password: regPassword.trim(),
       pin: regPassword.trim().slice(0, 6) || '1234',
       role: regRole.trim(),
-      accessLevel: 'Full Access (Admin)',
+      accessLevel: 'Field Engineer',
       avatarInitials: initials,
       avatarColor: 'bg-[#123B5D] text-white font-bold',
       avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80`,
       title: regRole.trim(),
-      prcLicense: regPrc.trim() || 'PRC-VERIFIED-ADMIN',
+      prcLicense: '',
       phone: '+63 917 000 0000',
       email: `${cleanUser}@4acedesk.com`,
       company: company.companyName,
@@ -136,6 +150,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
     setRegSuccess(true);
     setTimeout(() => {
+      if (rememberSession) { try { localStorage.setItem('4ace_remembered_credentials', JSON.stringify({ username: cleanUser, password: regPassword.trim() })); } catch {} }
       onLogin(newUser, rememberSession);
     }, 700);
   };
@@ -190,7 +205,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               }`}
             >
               <UserPlus className="w-3.5 h-3.5 text-[#18A999]" />
-              <span>Create Account (Full Access)</span>
+              <span>Create Account</span>
             </button>
           </div>
 
@@ -206,7 +221,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           {regSuccess && (
             <div className="p-3 bg-teal-50 border border-[#18A999]/30 rounded-xl text-[#0d786d] text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0 text-[#18A999]" />
-              <span>Account created successfully with Full Access! Logging in...</span>
+              <span>Account created successfully. Logging in...</span>
             </div>
           )}
 
@@ -262,9 +277,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     onChange={(e) => setRememberSession(e.target.checked)}
                     className="rounded border-slate-300 text-[#18A999] focus:ring-[#18A999] h-3.5 w-3.5"
                   />
-                  <span>Remember session</span>
+                  <span>Remember me</span>
                 </label>
-                <span className="text-[10px] text-[#18A999] font-bold">Full Access Privilege</span>
+
               </div>
 
               <button
@@ -272,32 +287,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 className="w-full py-3 bg-[#18A999] hover:bg-[#148f81] text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer mt-2"
               >
                 <LogIn className="w-4 h-4" />
-                <span>Log In (Full Access)</span>
+                <span>Log In</span>
               </button>
+              {hasSavedCredentials && <button type="button" onClick={handleUseSavedLogin} className="w-full py-2.5 border border-[#18A999] text-[#123B5D] hover:bg-[#EAF7FA] rounded-xl text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18A999]">Use saved login information</button>}
 
-              {/* Default accounts guidance box */}
-              <div className="p-3 bg-[#EAF7FA] border border-[#cbeaf0] rounded-xl text-[11px] text-[#123B5D] space-y-1">
-                <div className="font-bold flex items-center gap-1 text-[#123B5D]">
-                  <KeyRound className="w-3.5 h-3.5 text-[#18A999]" />
-                  <span>Available Full Access Accounts:</span>
-                </div>
-                <div className="flex flex-col gap-0.5 text-[#263238]/80 font-mono text-[10px]">
-                  <span>• User: <strong>arriana</strong> | Pass: <strong>admin123</strong> (or 1234)</span>
-                  <span>• User: <strong>marksantos</strong> | Pass: <strong>admin123</strong> (or 1234)</span>
-                  <span>• Or click <strong>&quot;Create Account&quot;</strong> above to register a new administrator.</span>
-                </div>
-              </div>
+
             </form>
           )}
 
           {/* MODE: CREATE ACCOUNT / ADD USER FORM */}
           {mode === 'register' && (
             <form onSubmit={handleRegisterSubmit} className="space-y-3.5 text-xs">
-              <div className="p-2.5 bg-teal-50 border border-[#18A999]/30 rounded-xl text-[11px] text-[#0d786d] flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#18A999] shrink-0" />
-                <span>All new user accounts are automatically provisioned with <strong>Full Access (Admin)</strong> privileges.</span>
-              </div>
-
               <div>
                 <label className="block font-bold text-[#123B5D] mb-1">
                   Full Name *
@@ -355,25 +355,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="block font-bold text-[#123B5D] mb-1">
-                  PRC License / ID (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={regPrc}
-                  onChange={(e) => setRegPrc(e.target.value)}
-                  placeholder="e.g. PRC-CE-019283"
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-[#263238] focus:bg-white focus:outline-none focus:border-[#18A999]"
-                />
-              </div>
-
               <button
                 type="submit"
                 className="w-full py-3 bg-[#18A999] hover:bg-[#148f81] text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer mt-2"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>Create Account &amp; Log In (Full Access)</span>
+                <span>Create Account &amp; Log In</span>
               </button>
             </form>
           )}

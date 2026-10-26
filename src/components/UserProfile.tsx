@@ -6,6 +6,7 @@ import {
   Mail,
   Phone,
   Save,
+  Camera,
   CheckCircle2,
   Briefcase,
 } from 'lucide-react';
@@ -24,22 +25,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<UserProfileType>({
     ...userProfile,
-    avatarUrl: '',
+    password: '',
+    avatarUrl: userProfile.avatarUrl || '',
     signaturePreparedBy: userProfile.signaturePreparedBy ?? 'Site Timekeeper / Payroll Clerk',
-    signaturePreparedTitle: userProfile.signaturePreparedTitle ?? 'Date Verified',
-    signatureCheckedBy: userProfile.signatureCheckedBy ?? '',
-    signatureCheckedTitle: userProfile.signatureCheckedTitle ?? 'Resident Project Engineer',
     signatureApprovedBy: userProfile.signatureApprovedBy ?? userProfile.name,
-    signatureApprovedTitle: userProfile.signatureApprovedTitle ?? 'Managing Contractor / PCAB Signatory',
-    signatureEngineerName: userProfile.signatureEngineerName ?? 'Engr. Mark Santos',
-    signatureEngineerTitle: userProfile.signatureEngineerTitle ?? 'Project Engineer & Estimator',
-    signatureClientTitle: userProfile.signatureClientTitle ?? 'Client / Project Owner (Conforme)',
   });
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSaveProfile(formData);
+    onSaveProfile({ ...formData, password: formData.password?.trim() || userProfile.password });
     setSavedSuccess(true);
     setTimeout(() => {
       setSavedSuccess(false);
@@ -73,8 +68,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs bg-white text-[#263238]">
           <div className="flex items-center gap-4 p-3.5 bg-[#EAF7FA] rounded-xl border border-slate-200">
-            <div aria-label="No profile photo" className="w-14 h-14 rounded-full border-2 border-[#18A999] bg-white shadow-xs shrink-0 flex items-center justify-center text-slate-400">
-              <User className="w-7 h-7" />
+            <div className="w-14 h-14 rounded-full border-2 border-[#18A999] bg-white shadow-xs shrink-0 overflow-hidden flex items-center justify-center text-slate-400">
+              {formData.avatarUrl ? <img src={formData.avatarUrl} alt={`${formData.name} profile`} className="w-full h-full object-cover" /> : <User className="w-7 h-7" />}
             </div>
             <div className="min-w-0">
               <h4 className="font-bold text-[#123B5D] text-sm truncate">{formData.name}</h4>
@@ -87,6 +82,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div><label className="block font-bold text-[#123B5D] mb-1">Username *</label><input required type="text" autoComplete="username" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:border-[#18A999]" /></div>
+            <div><label className="block font-bold text-[#123B5D] mb-1">New Password</label><input type="password" autoComplete="new-password" placeholder="Leave blank to keep current password" value={formData.password || ''} onChange={(e) => setFormData({ ...formData, password: e.target.value || undefined })} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:border-[#18A999]" /></div>
+          </div>
+          <div><label className="block font-bold text-[#123B5D] mb-1">Profile Picture</label><input aria-label="Upload profile picture" type="file" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setFormData((prev) => ({ ...prev, avatarUrl: String(reader.result || '') })); reader.readAsDataURL(file); }} className="block w-full text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-[#EAF7FA] file:px-3 file:py-2 file:font-bold file:text-[#123B5D]" /></div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block font-bold text-[#123B5D] mb-1">Full Name &amp; Title *</label>
@@ -171,21 +171,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </div>
 
 
-          <div className="pt-3 border-t border-slate-200 space-y-3">
+          {formData.accessLevel === 'Full Access (Admin)' && <div className="pt-3 border-t border-slate-200 space-y-3">
             <div>
               <h4 className="font-bold text-[#123B5D] text-sm">Report Signatories (Editable)</h4>
               <p className="text-[11px] text-slate-500 mt-1">Leave any field blank to remove that name or designation from reports.</p>
             </div>
             {([
-              ['signaturePreparedBy', 'Prepared By — Name / Role'],
-              ['signaturePreparedTitle', 'Prepared By — Date / Designation'],
-              ['signatureCheckedBy', 'Checked & Audited By — Name'],
-              ['signatureCheckedTitle', 'Checked & Audited By — Designation'],
-              ['signatureApprovedBy', 'Approved & Released By — Name'],
-              ['signatureApprovedTitle', 'Approved & Released By — Designation'],
-              ['signatureEngineerName', 'Project Engineer — Name'],
-              ['signatureEngineerTitle', 'Project Engineer — Designation'],
-              ['signatureClientTitle', 'Client / Project Owner — Designation'],
+              ['signaturePreparedBy', 'Prepared By — Printed Name'],
             ] as const).map(([key, label]) => (
               <div key={key}>
                 <label className="block font-bold text-[#123B5D] mb-1">{label}</label>
@@ -197,7 +189,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 />
               </div>
             ))}
-          </div>
+          </div>}
 
           {savedSuccess && (
             <div className="p-2.5 rounded-lg bg-[#EAF7FA] border border-[#18A999]/30 text-[#123B5D] flex items-center gap-2">

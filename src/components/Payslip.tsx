@@ -270,7 +270,7 @@ export const Payslip: React.FC<PayslipProps> = ({
                 <div>
                   <div className="h-10 border-b border-slate-400 mx-6 mt-4" />
                   <strong className="block text-[#123B5D] mt-1">{activeProject.supervisor || 'Site Engineer / Foreman'}</strong>
-                  <span className="text-[10px] text-[#263238]/60">Approved &amp; Disbursed By</span>
+                  <span className="text-[10px] text-[#263238]/60">Site Supervisor</span>
                 </div>
               </div>
 

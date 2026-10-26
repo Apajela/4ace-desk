@@ -81,6 +81,8 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
   const [workerRole, setWorkerRole] = useState('Lead Mason');
   const [workerDailyRate, setWorkerDailyRate] = useState<number>(750);
   const [workerPhone, setWorkerPhone] = useState('+63 917 ');
+  const [workerUsername, setWorkerUsername] = useState('');
+  const [workerPassword, setWorkerPassword] = useState('');
   const [workerProject, setWorkerProject] = useState(projects[0]?.id || 'proj-1');
   const [workerStatus, setWorkerStatus] = useState<'Active' | 'Inactive'>('Active');
   const [workerToDelete, setWorkerToDelete] = useState<Worker | null>(null);
@@ -206,6 +208,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
     setWorkerRole('Lead Mason');
     setWorkerDailyRate(750);
     setWorkerPhone('+63 917 ');
+    setWorkerUsername(''); setWorkerPassword('');
     setWorkerProject(projects[0]?.id || 'proj-1');
     setWorkerStatus('Active');
     setShowWorkerModal(true);
@@ -218,6 +221,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
     setWorkerRole(worker.role);
     setWorkerDailyRate(worker.dailyRate);
     setWorkerPhone(worker.phone || '+63 917 ');
+    setWorkerUsername(worker.username || ''); setWorkerPassword(worker.password || '');
     setWorkerProject(worker.assignedProject || projects[0]?.id || 'proj-1');
     setWorkerStatus(worker.status);
     setShowWorkerModal(true);
@@ -235,6 +239,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
         role: workerRole.trim(),
         dailyRate: Number(workerDailyRate) || 700,
         phone: workerPhone.trim(),
+        username: workerUsername.trim(), password: workerPassword || undefined,
         assignedProject: workerProject,
         status: workerStatus,
       };
@@ -255,6 +260,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
         role: workerRole.trim(),
         dailyRate: Number(workerDailyRate) || 700,
         phone: workerPhone.trim(),
+        username: workerUsername.trim(), password: workerPassword || undefined,
         assignedProject: workerProject,
         status: workerStatus,
       };
@@ -720,6 +726,10 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block font-semibold text-[#123B5D] mb-1">Login Username</label><input type="text" autoComplete="username" value={workerUsername} onChange={(e) => setWorkerUsername(e.target.value)} placeholder="Optional login username" className="w-full px-3 py-2 border border-[#cbeaf0] rounded-xl text-[#263238] focus:outline-none focus:border-[#18A999]" /></div>
+                <div><label className="block font-semibold text-[#123B5D] mb-1">Login Password</label><input type="password" autoComplete="new-password" value={workerPassword} onChange={(e) => setWorkerPassword(e.target.value)} placeholder="Optional login password" className="w-full px-3 py-2 border border-[#cbeaf0] rounded-xl text-[#263238] focus:outline-none focus:border-[#18A999]" /></div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-[#123B5D] mb-1">Contact Phone</label>

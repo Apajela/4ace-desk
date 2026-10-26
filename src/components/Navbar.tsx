@@ -15,10 +15,9 @@ import {
   Edit2,
   Menu,
   X,
-  BookOpen,
-  Globe,
   Archive,
   DownloadCloud,
+  Mic,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -42,8 +41,7 @@ export interface NavbarProps {
   onOpenProfileModal: () => void;
   onOpenReceiptScanner: () => void;
   onOpenNewProject?: () => void;
-  onOpenGuideModal?: () => void;
-  onOpenDomainModal?: () => void;
+  allowedTabs?: string[];
   onLogout: () => void;
   pendingPrioritiesCount: number;
 }
@@ -59,13 +57,19 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNotifications,
   onOpenProfileModal,
   onOpenReceiptScanner,
-  onOpenGuideModal,
-  onOpenDomainModal,
+  allowedTabs,
   onLogout,
   pendingPrioritiesCount,
 }) => {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [highContrast, setHighContrast] = useState(() => { try { return localStorage.getItem('4ace_high_contrast') === 'true'; } catch { return false; } });
+  const [largeText, setLargeText] = useState(() => { try { return localStorage.getItem('4ace_large_text') === 'true'; } catch { return false; } });
+  React.useEffect(() => {
+    document.documentElement.classList.toggle('high-contrast', highContrast);
+    document.documentElement.classList.toggle('large-text', largeText);
+    try { localStorage.setItem('4ace_high_contrast', String(highContrast)); localStorage.setItem('4ace_large_text', String(largeText)); } catch {}
+  }, [highContrast, largeText]);
 
   const unreadNotifCount = notifications.filter((notification) => !notification.read).length;
 
@@ -87,7 +91,21 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'expenses', label: 'Expenses & Ledger', icon: Receipt },
     { id: 'reports', label: 'Reports & Costing', icon: FileText },
     { id: 'archive', label: 'Project History', icon: Archive },
-  ];
+  ].filter((link) => !allowedTabs || allowedTabs.includes(link.id));
+
+  const startVoiceNavigation = () => {
+    const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) { window.alert('Voice navigation is not supported by this browser.'); return; }
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = 'en-PH'; recognition.interimResults = false; recognition.maxAlternatives = 1;
+    recognition.onresult = (event: any) => {
+      const phrase = String(event.results?.[0]?.[0]?.transcript || '').toLowerCase();
+      const shortcuts: Record<string, string> = { projects: 'dashboard', sites: 'priorities', foremen: 'attendance', labor: 'payroll', dashboard: 'dashboard', priorities: 'priorities', attendance: 'attendance', payroll: 'payroll', expenses: 'expenses', reports: 'reports', history: 'archive' };
+      const target = Object.keys(shortcuts).find((word) => phrase.includes(word));
+      if (target && (!allowedTabs || allowedTabs.includes(shortcuts[target]))) selectTab(shortcuts[target]);
+    };
+    recognition.start();
+  };
 
   const selectTab = (tabId: string) => {
     onSelectTab(tabId);
@@ -161,39 +179,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Action Controls */}
           <div className="flex items-center gap-2">
             {/* Quick Receipt Scanner shortcut */}
-            <button
+            {allowedTabs?.includes('expenses') && <button
               onClick={onOpenReceiptScanner}
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0e2e49] hover:bg-[#164063] text-teal-200 border border-[#1a4c75] text-xs font-semibold transition-colors cursor-pointer"
-              title="Camera Receipt Scanner (Smart AI OCR)"
+              title="Camera Receipt Scanner"
             >
               <Camera className="w-3.5 h-3.5 text-[#18A999]" />
               <span>Scan Receipt</span>
-            </button>
+            </button>}
 
-            {/* Software Guide */}
-            {onOpenGuideModal && (
-              <button
-                onClick={onOpenGuideModal}
-                className="p-2 rounded-lg text-teal-100/70 hover:text-white hover:bg-[#0e2e49] transition-colors cursor-pointer"
-                title="User Manual &amp; Guidelines"
-              >
-                <BookOpen className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Custom Domain White-Label */}
-            {onOpenDomainModal && (
-              <button
-                onClick={onOpenDomainModal}
-                className="p-2 rounded-lg text-teal-100/70 hover:text-white hover:bg-[#0e2e49] transition-colors cursor-pointer"
-                title="Custom Domain &amp; White-Label Portal"
-              >
-                <Globe className="w-4 h-4" />
-              </button>
-            )}
-
+            <button type="button" onClick={() => setHighContrast((value) => !value)} aria-pressed={highContrast} aria-label="Toggle high contrast mode" title="High contrast mode" className="p-2 rounded-lg text-teal-100 hover:text-white hover:bg-[#0e2e49] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">◐</button>
+            <button type="button" onClick={() => setLargeText((value) => !value)} aria-pressed={largeText} aria-label="Toggle larger text" title="Larger text" className="p-2 rounded-lg text-teal-100 hover:text-white hover:bg-[#0e2e49] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">A+</button>
+            <button type="button" onClick={startVoiceNavigation} aria-label="Voice navigation" title="Voice navigation: say Projects, Sites, Foremen, or Labor" className="p-2 rounded-lg text-teal-100 hover:text-white hover:bg-[#0e2e49] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"><Mic className="w-4 h-4" aria-hidden="true" /></button>
             {/* Notification Bell */}
             <button
+              aria-label={`Notifications, ${unreadNotifCount} unread`}
               onClick={onOpenNotifications}
               className="relative p-2 rounded-lg text-teal-100/70 hover:text-white hover:bg-[#0e2e49] transition-colors cursor-pointer"
               title="Notifications &amp; Operations Alert Center"
@@ -214,8 +214,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                 className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-[#0e2e49] hover:bg-[#164063] border border-[#1a4c75] hover:border-[#18A999]/60 transition-all text-left cursor-pointer"
               >
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold bg-[#18A999] text-white shadow-xs">
-                  {currentUser.avatarInitials}
+                <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center text-xs font-bold bg-[#18A999] text-white shadow-xs" aria-hidden="true">
+                  {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} alt="" className="w-full h-full object-cover" /> : currentUser.avatarInitials}
                 </div>
                 <div className="hidden md:block min-w-0 max-w-[130px]">
                   <div className="text-xs font-bold text-white truncate leading-tight">
@@ -249,7 +249,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <Edit2 className="w-3.5 h-3.5 text-[#18A999]" />
                       <span>Edit Profile / Credentials</span>
                     </button>
-                    <button
+                    {allowedTabs?.includes('archive') && <button
                       onClick={() => {
                         setUserDropdownOpen(false);
                         selectTab('archive');
@@ -258,7 +258,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     >
                       <Archive className="w-3.5 h-3.5" />
                       <span>Project History &amp; Archive</span>
-                    </button>
+                    </button>}
                   </div>
                   <div className="pt-1 border-t border-[#1a4c75]">
                     <button

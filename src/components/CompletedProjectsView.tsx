@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Archive,
   ArrowRight,
+  Trash2,
   AlertTriangle,
 } from 'lucide-react';
 import { Project, ExpenseItem, PayrollEntry } from '../types';
@@ -28,6 +29,7 @@ export interface CompletedProjectsViewProps {
   payroll: PayrollEntry[];
   onReopenProject: (projectId: string) => void;
   onCancelProject?: (projectId: string) => void;
+  onDeleteProject?: (projectId: string) => void;
   onSelectProjectForReports: (projectId: string) => void;
 }
 
@@ -37,6 +39,7 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
   payroll,
   onReopenProject,
   onCancelProject,
+  onDeleteProject,
   onSelectProjectForReports,
 }) => {
   const [filterStatus, setFilterStatus] = useState<'All' | 'Completed' | 'Cancelled'>('All');
@@ -305,6 +308,7 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
 
+                    {onDeleteProject && <button onClick={() => { if (window.confirm(`Permanently delete ${proj.name} from project history?`)) onDeleteProject(proj.id); }} className="flex items-center gap-1 text-xs text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 font-bold px-2.5 py-1.5 rounded-xl transition cursor-pointer" title="Delete project from history"><Trash2 className="w-3.5 h-3.5" /><span>Delete Project</span></button>}
                     {/* Reopen / Restore Project */}
                     <button
                       onClick={() => onReopenProject(proj.id)}

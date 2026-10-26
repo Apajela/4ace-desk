@@ -54,6 +54,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   workers,
   attendance,
   priorities,
+  currentUser,
   onNavigateTab,
   onOpenAttendanceModal,
   onOpenReceiptScanner,
@@ -64,12 +65,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onClearCompletedPriorities,
   onSelectProject,
 }) => {
+  const isFullAccess = currentUser.accessLevel === 'Full Access (Admin)';
   const [newPriorityTitle, setNewPriorityTitle] = useState('');
   const [priorityLevel, setPriorityLevel] = useState<SitePriority['priority']>('medium');
   const [priorityAssignee, setPriorityAssignee] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [isAddingPriority, setIsAddingPriority] = useState(false);
   const [txFilter, setTxFilter] = useState<'all' | 'materials' | 'labor'>('all');
+  const allProjectsCompleted = allProjects.length > 0 && allProjects.every((project) => project.status === 'Completed' || project.status === 'Cancelled') && allProjects.some((project) => project.status === 'Completed');
 
   const projectExpenses = expenses.filter(
     (e) => !e.projectId || e.projectId === activeProject.id || e.projectName === activeProject.name
@@ -175,6 +178,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return true;
   });
 
+  if (allProjectsCompleted) {
+    return <section className="mx-auto mt-8 max-w-4xl rounded-3xl border border-emerald-200 bg-white p-8 sm:p-12 text-center shadow-sm" role="status" aria-live="polite">
+      <div className="text-5xl mb-4" aria-hidden="true">🎉</div>
+      <h1 className="text-2xl sm:text-3xl font-black text-[#123B5D]">Congratulations, Team!</h1>
+      <p className="mt-4 text-base sm:text-lg leading-relaxed text-slate-700">All projects have been successfully completed! Congratulations to everyone for the hard work, dedication, and teamwork that made this achievement possible. Great job, everyone! Keep up the excellent work! 🏆</p>
+    </section>;
+  }
+
   return (
     <div className="space-y-6 text-[#263238]">
       {/* 1. Top Command Center Header - Navy #123B5D with Teal #18A999 Accents */}
@@ -201,21 +212,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           {/* Quick Action Tools */}
           <div className="flex items-center gap-2.5 flex-wrap">
-            <button
+            {isFullAccess && <button
               onClick={onOpenReceiptScanner}
               className="px-3.5 py-2.5 rounded-xl bg-[#0e2e49] hover:bg-[#164063] text-teal-200 border border-[#1a4c75] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               title="Camera Receipt Scanner (Smart AI OCR)"
             >
               <Camera className="w-4 h-4 text-[#18A999]" />
               <span>Scan Receipt</span>
-            </button>
-            <button
+            </button>}
+            {isFullAccess && <button
               onClick={onOpenAttendanceModal}
               className="px-3.5 py-2.5 rounded-xl bg-[#0e2e49] hover:bg-[#164063] text-teal-100 border border-[#1a4c75] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Users className="w-4 h-4 text-teal-300" />
               <span>Attendance Terminal</span>
-            </button>
+            </button>}
             <button
               onClick={() => onNavigateTab('payroll')}
               className="px-3.5 py-2.5 rounded-xl bg-[#0e2e49] hover:bg-[#164063] text-white text-xs font-bold flex items-center gap-1.5 border border-[#1a4c75] transition-colors cursor-pointer"
@@ -223,12 +234,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <Receipt className="w-4 h-4 text-[#18A999]" />
               <span>Weekly Payroll</span>
             </button>
-            <button
+            {isFullAccess && <button
               onClick={onOpenProjectModal}
               className="px-4 py-2.5 rounded-xl bg-[#18A999] hover:bg-[#148f81] text-white text-xs font-black shadow-md transition-colors cursor-pointer"
             >
               + New Site
-            </button>
+            </button>}
           </div>
         </div>
 
@@ -413,12 +424,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span className="text-xs text-[#546e7a]">
                 Site Foreman: <strong className="text-[#123B5D]">{activeProject.supervisor}</strong>
               </span>
-              <button
+              {isFullAccess && <button
                 onClick={onOpenAttendanceModal}
                 className="text-xs font-bold text-[#18A999] hover:text-[#148f81] flex items-center gap-1 transition-colors cursor-pointer"
               >
                 <span>Open Terminal &rarr;</span>
-              </button>
+              </button>}
             </div>
           </div>
         </div>
@@ -550,13 +561,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   />
                 </div>
               </div>
-              <button
+              {isFullAccess && <button
                 onClick={() => setIsAddingPriority(!isAddingPriority)}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#18A999] hover:bg-[#148f81] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Task</span>
-              </button>
+              </button>}
             </div>
           </div>
 
@@ -595,7 +606,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button>
             </div>
 
-            {completedPrioritiesCount > 0 && (
+            {isFullAccess && completedPrioritiesCount > 0 && (
               <button
                 onClick={onClearCompletedPriorities}
                 className="text-xs text-[#546e7a] hover:text-rose-600 flex items-center gap-1 transition-colors cursor-pointer"
@@ -730,13 +741,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </div>
                 </div>
 
-                <button
+                {isFullAccess && <button
                   type="button"
+                  aria-label={`Delete priority ${item.title}`}
                   onClick={() => onDeletePriority(item.id)}
                   className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 p-1 transition-opacity cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                </button>}
               </div>
             ))
           )}
