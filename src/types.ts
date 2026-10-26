@@ -62,6 +62,8 @@ export interface Worker {
   phone: string;
   status: 'Active' | 'Inactive';
   assignedProject?: string;
+  username?: string;
+  password?: string;
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'overtime';

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocalStorage } from './Storage';
 import {
   Project,
   Worker,
@@ -16,7 +17,6 @@ import {
 import {
   DEFAULT_PROJECTS,
   DEFAULT_WORKERS,
-  DEFAULT_EXPENSES,
   DEFAULT_PRIORITIES,
   DEFAULT_PAYROLL,
   DEFAULT_NOTIFICATIONS,
@@ -34,7 +34,6 @@ import { PrioritiesView } from './components/PrioritiesView';
 import { AttendanceRecord } from './components/AttendanceRecord';
 import { WeeklyPayrollView } from './components/WeeklyPayrollView';
 import { ExpensesView } from './components/ExpensesView';
-import { ReportsView } from './components/ReportsView';
 import { CompletedProjectsView } from './components/CompletedProjectsView';
 import { ReceiptScannerModal as ReceiptScanner } from './components/ReceiptScanner';
 import { NotificationModal as Notification } from './components/Notification';
@@ -65,24 +64,22 @@ export default function App() {
 
   // User Authentication State
   const [currentUser, setCurrentUser] = useState<UserProfileType | null>(() => {
-    return getInitialData<UserProfileType | null>('4ace_current_user', DEFAULT_USERS[0]);
+    try { const restored = localStorage.getItem('4ace_remembered_credentials') ? getInitialData<UserProfileType | null>('4ace_current_user', null) : null; return restored ? { ...restored, accessLevel: restored.id === 'user-1' || restored.id === 'user-2' ? 'Full Access (Admin)' : 'Field Engineer' } : null; } catch { return null; }
   });
   const [users, setUsers] = useState<UserProfileType[]>(() =>
     getInitialData('4ace_users', DEFAULT_USERS)
   );
+  useEffect(() => { setUsers((previous) => previous.map((user) => ({ ...user, accessLevel: user.id === 'user-1' || user.id === 'user-2' ? 'Full Access (Admin)' : 'Field Engineer' }))); }, []);
   const [company, setCompany] = useState<CompanySettings>(() =>
     getInitialData('4ace_company', DEFAULT_COMPANY)
   );
 
   // App Navigation & Loading State
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
-  const [isLoadingApp, setIsLoadingApp] = useState(true);
+  const [activeTab, setActiveTab] = useLocalStorage<string>('4ace_active_tab', 'dashboard');
 
   // Core Data Stores
-  const [projects, setProjects] = useState<Project[]>(() =>
-    getInitialData('4ace_projects', DEFAULT_PROJECTS)
-  );
-  const [currentProjectId, setCurrentProjectId] = useState<string>(() => {
+  const [projects, setProjects] = useLocalStorage<Project[]>('4ace_projects', DEFAULT_PROJECTS);
+  const [currentProjectId, setCurrentProjectId] = useLocalStorage<string>('4ace_current_project', () => {
     const active = projects.find((p) => p.status !== 'Completed' && p.status !== 'Cancelled');
     return active ? active.id : (projects[0]?.id || DEFAULT_PROJECTS[0].id);
   });
@@ -95,18 +92,14 @@ export default function App() {
   const [cashAdvances, setCashAdvances] = useState<CashAdvance[]>(() =>
     getInitialData('4ace_cash_advances', DEFAULT_CASH_ADVANCES)
   );
-  const [expenses, setExpenses] = useState<ExpenseItem[]>(() =>
-    getInitialData('4ace_expenses', DEFAULT_EXPENSES)
-  );
+  const [expenses, setExpenses] = useLocalStorage<ExpenseItem[]>('4ace_expenses', []);
   const [priorities, setPriorities] = useState<SitePriorityItem[]>(() =>
     getInitialData('4ace_priorities', DEFAULT_PRIORITIES)
   );
   const [payroll, setPayroll] = useState<PayrollEntry[]>(() =>
     getInitialData('4ace_payroll', DEFAULT_PAYROLL)
   );
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() =>
-    getInitialData('4ace_notifications', DEFAULT_NOTIFICATIONS)
-  );
+  const [notifications, setNotifications] = useLocalStorage<NotificationItem[]>('4ace_notifications', DEFAULT_NOTIFICATIONS);
 
   // Modal Control States
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
@@ -115,24 +108,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
 
-  // App initialization timer
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoadingApp(false);
-    }, 200);
-    return () => clearTimeout(timer);
-  }, []);
-
   // Sync to LocalStorage on updates
-  useEffect(() => {
-    try {
-      if (currentUser) {
-        localStorage.setItem('4ace_current_user', JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem('4ace_current_user');
-      }
-    } catch {}
-  }, [currentUser]);
 
   useEffect(() => {
     try {
@@ -140,11 +116,6 @@ export default function App() {
     } catch {}
   }, [users]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('4ace_projects', JSON.stringify(projects));
-    } catch {}
-  }, [projects]);
 
   useEffect(() => {
     try {
@@ -164,11 +135,6 @@ export default function App() {
     } catch {}
   }, [cashAdvances]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('4ace_expenses', JSON.stringify(expenses));
-    } catch {}
-  }, [expenses]);
 
   useEffect(() => {
     try {
@@ -182,11 +148,6 @@ export default function App() {
     } catch {}
   }, [payroll]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('4ace_notifications', JSON.stringify(notifications));
-    } catch {}
-  }, [notifications]);
 
 
   const activeProject =
@@ -403,6 +364,19 @@ export default function App() {
     setNotifications((prev) => [notif, ...prev]);
   };
 
+  const handleDeleteProject = (projId: string) => {
+    setProjects((prev) => prev.filter((project) => project.id !== projId));
+    setExpenses((prev) => prev.filter((expense) => expense.projectId !== projId));
+    setPriorities((prev) => prev.filter((priority) => priority.projectId !== projId));
+    setAttendance((prev) => prev.filter((record) => record.projectId !== projId));
+    setCashAdvances((prev) => prev.filter((advance) => advance.projectId !== projId));
+    setPayroll((prev) => prev.filter((entry) => !workers.some((worker) => worker.id === entry.workerId && worker.assignedProject === projId)));
+    if (currentProjectId === projId) {
+      const next = projects.find((project) => project.id !== projId && project.status !== 'Completed' && project.status !== 'Cancelled');
+      if (next) setCurrentProjectId(next.id);
+    }
+  };
+
   // Cancel Project Handler
   const handleCancelProject = (projId: string) => {
     const target = projects.find((p) => p.id === projId);
@@ -533,6 +507,15 @@ export default function App() {
       id: `w-${Date.now()}`,
     };
     setWorkers((prev) => [...prev, worker]);
+    if (worker.username?.trim() && worker.password?.trim()) {
+      const workerAccount: UserProfileType = {
+        id: `account-${worker.id}`, name: worker.name, username: worker.username.trim().toLowerCase(),
+        password: worker.password, pin: worker.password, role: worker.role, accessLevel: 'Field Engineer',
+        avatarInitials: worker.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase(),
+        avatarColor: 'bg-[#123B5D] text-white font-bold',
+      };
+      setUsers((prev) => prev.some((user) => user.username.toLowerCase() === workerAccount.username) ? prev : [...prev, workerAccount]);
+    }
 
     const newPayrollEntry: PayrollEntry = {
       id: `pr-${Date.now()}`,
@@ -633,6 +616,7 @@ export default function App() {
           : prof.signatureApprovedBy,
     };
     setCurrentUser(nextProfile);
+    try { if (localStorage.getItem('4ace_remembered_credentials')) { localStorage.setItem('4ace_current_user', JSON.stringify(nextProfile)); localStorage.setItem('4ace_remembered_credentials', JSON.stringify({ username: nextProfile.username, password: nextProfile.password || '' })); } } catch {}
     setUsers((prev) => prev.map((u) => (u.id === nextProfile.id ? nextProfile : u)));
     if (previousName && previousName !== nextProfile.name.trim()) {
       setProjects((prev) => prev.map((p) => ({
@@ -713,12 +697,17 @@ export default function App() {
     handleAddExpense(expense);
   };
 
+  const isFullAccess = !!currentUser && currentUser.accessLevel === 'Full Access (Admin)';
+  const allProjectsFinished = projects.length > 0 && projects.every((project) => project.status === 'Completed' || project.status === 'Cancelled') && projects.some((project) => project.status === 'Completed');
+  const allowedTabs = isFullAccess ? ['dashboard', 'priorities', 'attendance', 'payroll', 'expenses', 'reports', 'archive'] : ['dashboard', 'priorities', 'payroll'];
+  useEffect(() => { if (currentUser && !allowedTabs.includes(activeTab)) setActiveTab('dashboard'); }, [activeTab, currentUser?.accessLevel]);
+
   // If user is not logged in, render LoginScreen
   if (!currentUser) {
     return (
       <LoginScreen
         users={users}
-        onLogin={(user) => setCurrentUser(user)}
+        onLogin={(user, remember) => { setCurrentUser(user); try { if (remember) localStorage.setItem('4ace_current_user', JSON.stringify(user)); else localStorage.removeItem('4ace_current_user'); } catch {} }}
         onCreateUser={handleCreateUser}
         company={company}
       />
@@ -731,6 +720,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white text-[#263238] flex flex-col font-sans antialiased selection:bg-[#18A999] selection:text-white">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:font-bold focus:text-[#123B5D]">Skip to main content</a>
       {/* Top Application Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -738,6 +728,7 @@ export default function App() {
         currentUser={currentUser}
         allUsers={users}
         projects={projects}
+        allowedTabs={allowedTabs}
         activeProjectId={activeProject.id}
         onSelectProject={(id) => setCurrentProjectId(id)}
         company={company}
@@ -746,22 +737,30 @@ export default function App() {
         onOpenProfileModal={() => setShowProfile(true)}
         onOpenReceiptScanner={() => setShowScanner(true)}
         onOpenNewProject={() => setShowProjectModal(true)}
-        onOpenGuideModal={() => {}}
-        onOpenDomainModal={() => {}}
-        onLogout={() => setCurrentUser(null)}
+        onLogout={() => { setCurrentUser(null); try { localStorage.removeItem('4ace_current_user'); } catch {} }}
         pendingPrioritiesCount={pendingPrioritiesCount}
       />
 
-      {/* Main Workspace Body */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+      {/* Responsive workspace sidebar and active module */}
+      <div className="flex-1 max-w-7xl mx-auto w-full flex flex-col md:flex-row gap-5 px-4 sm:px-6 lg:px-8 py-6">
+        <aside aria-label="Main navigation" className="md:w-52 md:shrink-0">
+          <nav className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+            {[{ id: 'dashboard', label: 'Projects', icon: '▦' }, { id: 'priorities', label: 'Sites', icon: '⌖' }, { id: 'attendance', label: 'Foremen', icon: '♙' }, { id: 'payroll', label: 'Labor', icon: '₱' }].filter((item) => allowedTabs.includes(item.id)).map((item) => (
+              <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} aria-current={activeTab === item.id ? 'page' : undefined} className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18A999] ${activeTab === item.id ? 'bg-[#123B5D] text-white' : 'text-[#123B5D] hover:bg-[#EAF7FA]'}`}>
+                <span className="w-6 text-center text-lg" aria-hidden="true">{item.icon}</span><span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
         {activeTab === 'dashboard' && (
           <DashboardView
             activeProject={activeProject}
             allProjects={projects}
             expenses={expenses}
-            workers={workers}
-            attendance={attendance}
-            cashAdvances={cashAdvances}
+            workers={isFullAccess ? workers : workers.filter((w) => w.name.toLowerCase() === currentUser.name.toLowerCase())}
+            attendance={isFullAccess ? attendance : attendance.filter((a) => a.workerName?.toLowerCase() === currentUser.name.toLowerCase())}
+            cashAdvances={isFullAccess ? cashAdvances : cashAdvances.filter((a) => a.workerName.toLowerCase() === currentUser.name.toLowerCase())}
             priorities={priorities}
             currentUser={currentUser}
             company={company}
@@ -805,21 +804,26 @@ export default function App() {
         {activeTab === 'payroll' && (
           <WeeklyPayrollView
             currentProject={activeProject}
-            workers={workers}
-            payroll={payroll}
-            cashAdvances={cashAdvances}
-            onAddCashAdvance={handleAddCashAdvance}
-            onDeleteCashAdvance={handleDeleteCashAdvance}
-            onToggleCashAdvanceStatus={handleToggleCashAdvanceStatus}
-            onUpdatePayrollEntry={handleUpdatePayrollEntry}
-            onMarkAllPaid={handleMarkAllPayrollPaid}
-            onLogAttendanceClick={() => setShowAttendanceModal(true)}
-            onPostLaborExpense={handlePostLaborExpense}
+            workers={isFullAccess ? workers : workers.filter((w) => w.name.toLowerCase() === currentUser.name.toLowerCase())}
+            payroll={isFullAccess ? payroll : payroll.filter((entry) => entry.workerName.toLowerCase() === currentUser.name.toLowerCase())}
+            cashAdvances={isFullAccess ? cashAdvances : cashAdvances.filter((entry) => entry.workerName.toLowerCase() === currentUser.name.toLowerCase())}
+            onAddCashAdvance={isFullAccess ? handleAddCashAdvance : undefined}
+            onDeleteCashAdvance={isFullAccess ? handleDeleteCashAdvance : undefined}
+            onToggleCashAdvanceStatus={isFullAccess ? handleToggleCashAdvanceStatus : undefined}
+            onUpdatePayrollEntry={isFullAccess ? handleUpdatePayrollEntry : undefined}
+            onMarkAllPaid={isFullAccess ? handleMarkAllPayrollPaid : undefined}
+            onLogAttendanceClick={isFullAccess ? () => setShowAttendanceModal(true) : undefined}
+            onPostLaborExpense={isFullAccess ? handlePostLaborExpense : undefined}
             currentUser={currentUser}
           />
         )}
 
-        {activeTab === 'expenses' && (
+        {activeTab === 'expenses' && (allProjectsFinished ? (
+          <section className="rounded-2xl border border-slate-200 bg-white p-10 text-center" role="status" aria-live="polite">
+            <h1 className="text-xl font-black text-[#123B5D]">No project expenses</h1>
+            <p className="mt-2 text-sm text-slate-600">All projects have been completed. Expense entries are hidden from this page.</p>
+          </section>
+        ) : (
           <ExpensesView
             currentProject={activeProject}
             expenses={expenses}
@@ -828,18 +832,13 @@ export default function App() {
             onDeleteExpense={handleDeleteExpense}
             onOpenReceiptScanner={() => setShowScanner(true)}
           />
-        )}
+        ))}
 
-        {activeTab === 'reports' && (
-          <ReportsView
-            currentProject={activeProject}
-            expenses={expenses}
-            payroll={payroll}
-            priorities={priorities}
-            onCompleteProject={handleCompleteProject}
-            onCancelProject={handleCancelProject}
-            currentUser={currentUser}
-          />
+        {activeTab === 'reports' && isFullAccess && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-10 text-center" aria-live="polite">
+            <h1 className="text-xl font-black text-[#123B5D]">Reports</h1>
+            <p className="mt-2 text-sm text-slate-600">Project reports have been cleared as requested.</p>
+          </section>
         )}
 
         {activeTab === 'archive' && (
@@ -849,10 +848,12 @@ export default function App() {
             payroll={payroll}
             onReopenProject={handleReopenProject}
             onCancelProject={handleCancelProject}
+            onDeleteProject={handleDeleteProject}
             onSelectProjectForReports={handleSelectProjectForReports}
           />
         )}
-      </main>
+        </main>
+      </div>
 
       {/* Footer */}
       <footer className="border-t border-[#0d2b45] bg-[#123B5D] py-4 px-6 text-center text-xs text-slate-300">
