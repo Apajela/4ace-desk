@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { triggerBrowserPrint } from '../utils/printReport';
 import { calculateProjectLaborAllocation } from '../utils/payrollExpenseHelper';
+import { exportExecutiveReportPdf } from '../utils/pdfExport';
 
 export interface ReportsViewProps {
   currentProject: Project;
@@ -66,24 +67,25 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const totalActualCost = totalMaterialsCost + laborAllocation.totalChargeableLaborExpense;
   const budgetUtilization = Math.round((totalActualCost / (currentProject.budget || 1)) * 100);
 
+  // Browser print action
   const handlePrint = () => {
     triggerBrowserPrint();
   };
 
-  // Complete Project Action (Allowed even if progress < 100%)
+  // Direct PDF download action
+  const handleDownloadPdf = () => {
+    exportExecutiveReportPdf(currentProject, laborAllocation, projectExpenses);
+  };
+
+  // Mark as Completed Project Action (Allowed anytime, even if progress < 100%)
   const handleMarkAsCompleted = () => {
     if (onCompleteProject) {
       onCompleteProject(currentProject.id);
     }
     setCompletedSuccessToast(true);
-    // Switch to executive report view and immediately trigger PDF download
-    setActiveTab('executive');
-    setTimeout(() => {
-      triggerBrowserPrint();
-    }, 600);
     setTimeout(() => {
       setCompletedSuccessToast(false);
-    }, 5000);
+    }, 6000);
   };
 
   return (
@@ -102,6 +104,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${
                 currentProject.status === 'Completed'
                   ? 'bg-teal-100 text-teal-800 border-teal-300'
+                  : currentProject.status === 'Cancelled'
+                  ? 'bg-rose-100 text-rose-800 border-rose-300'
                   : 'bg-amber-100 text-amber-800 border-amber-300'
               }`}
             >
@@ -113,26 +117,36 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </p>
         </div>
 
-        {/* Action Buttons: Mark as Completed & Print PDF */}
+        {/* Action Buttons: Mark as Completed Project, Save PDF, and Print Report */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Mark as Completed Project Button (Allowed anytime, even if progress < 100%) */}
+          {/* Mark as Completed Project Button (No download triggered here) */}
           <button
             onClick={handleMarkAsCompleted}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#123B5D] hover:bg-[#0c273e] text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer border border-[#18A999]/50"
-            title="Mark project as Completed and immediately download Executive & Site Progress Report PDF (Kahit hindi pa 100% ang physical progress)"
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#123B5D] hover:bg-[#0c273e] text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer border border-[#18A999]/50"
+            title="Mark project as Completed and archive to Project History (Allowed anytime, regardless of physical progress)"
           >
             <CheckCircle2 className="w-4 h-4 text-[#18A999]" />
-            <span>Mark as Completed &amp; Download PDF</span>
+            <span>Mark as Completed Project</span>
           </button>
 
-          {/* Save PDF for Current Selected Tab */}
+          {/* Dedicated Save PDF Button (Direct Download) */}
+          <button
+            onClick={handleDownloadPdf}
+            className="px-4 py-2.5 bg-[#18A999] hover:bg-[#148f81] text-white font-bold text-xs rounded-xl transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+            title="Directly download clean PDF report file to your device"
+          >
+            <Download className="w-4 h-4" />
+            <span>Save PDF</span>
+          </button>
+
+          {/* Dedicated Print Report Button (Browser Print) */}
           <button
             onClick={handlePrint}
-            className="px-4 py-2.5 bg-[#18A999] hover:bg-[#148f81] text-white font-bold text-xs rounded-xl transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
-            title="Save as PDF or Print Current Report Sheet"
+            className="px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-[#123B5D] font-bold text-xs rounded-xl transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+            title="Open browser print dialog"
           >
-            <Printer className="w-4 h-4" />
-            <span>Save PDF (This Report)</span>
+            <Printer className="w-4 h-4 text-[#18A999]" />
+            <span>Print Report</span>
           </button>
         </div>
       </div>
@@ -144,20 +158,20 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <Award className="w-5 h-5 text-[#18A999] shrink-0" />
             <div>
               <p className="text-sm font-black text-[#123B5D]">
-                Project Matagumpay na Naitakda bilang COMPLETED!
+                Project Status Successfully Updated to COMPLETED!
               </p>
               <p className="font-normal text-[#263238]">
-                Awtomatikong binubuksan ang PDF print dialog para sa Executive &amp; Site Progress Report.
+                Site project has been archived to the Project History page and removed from active site selection.
               </p>
             </div>
           </div>
-          <span className="text-[10px] bg-[#18A999] text-white px-2 py-0.5 rounded font-bold">
+          <span className="text-[10px] bg-[#18A999] text-white px-2.5 py-1 rounded-md font-bold">
             Turnover Ready
           </span>
         </div>
       )}
 
-      {/* Report Navigation Tabs (All with Save PDF buttons) */}
+      {/* Report Navigation Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200 text-xs font-bold">
         {[
           { id: 'executive', label: 'Executive & Site Progress', icon: TrendingUp },
@@ -253,13 +267,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   Official engineering progress certification for {currentProject.name} ({currentProject.code})
                 </p>
               </div>
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer print:hidden"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Save PDF</span>
-              </button>
+              <div className="flex items-center gap-2 print:hidden">
+                <button
+                  onClick={handleDownloadPdf}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Save PDF</span>
+                </button>
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-[#123B5D] rounded-xl text-xs font-bold hover:bg-slate-50 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5 text-[#18A999]" />
+                  <span>Print</span>
+                </button>
+              </div>
             </div>
 
             {/* Milestones Schedule */}
@@ -334,13 +357,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <BarChart3 className="w-4 h-4 text-[#18A999]" />
                   Budget vs. Actual Expenditure Analysis
                 </h3>
-                <button
-                  onClick={handlePrint}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer print:hidden"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Save PDF</span>
-                </button>
+                <div className="flex items-center gap-2 print:hidden">
+                  <button
+                    onClick={handleDownloadPdf}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Save PDF</span>
+                  </button>
+                  <button
+                    onClick={handlePrint}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-[#123B5D] rounded-xl text-xs font-bold hover:bg-slate-50 cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-[#18A999]" />
+                    <span>Print</span>
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -424,13 +456,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   Labor duty charged strictly from project start date: <strong className="text-[#123B5D]">{currentProject.startDate}</strong>
                 </p>
               </div>
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer print:hidden"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Save PDF</span>
-              </button>
+              <div className="flex items-center gap-2 print:hidden">
+                <button
+                  onClick={handleDownloadPdf}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Save PDF</span>
+                </button>
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-[#123B5D] rounded-xl text-xs font-bold hover:bg-slate-50 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5 text-[#18A999]" />
+                  <span>Print</span>
+                </button>
+              </div>
             </div>
 
             {/* Rule Callout Box */}
@@ -440,9 +481,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 <span>Proration Policy Notice:</span>
               </div>
               <p className="text-[#263238]">
-                Ang gastusin sa labor ay ibinabawas lamang simula noong nag-umpisa ang project (<strong>{currentProject.startDate}</strong>).
-                Para sa cutoff period na <strong>{laborAllocation.cutoffStartDate} hanggang {laborAllocation.cutoffEndDate}</strong>,
-                may <strong>{laborAllocation.maxChargeableWindowDays} araw lang</strong> na duty ng mga trabahador ang idinadagdag sa gastusin ng project na ito.
+                Labor expenses are strictly charged starting from the project start date (<strong>{currentProject.startDate}</strong>).
+                For the cutoff period from <strong>{laborAllocation.cutoffStartDate} to {laborAllocation.cutoffEndDate}</strong>,
+                only <strong>{laborAllocation.maxChargeableWindowDays} duty days</strong> of worker labor are allocated to this site project.
+                Labor shifts prior to project commencement are excluded from this project budget.
               </p>
             </div>
 
@@ -483,7 +525,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 <tfoot className="bg-[#EAF7FA] font-bold border-t border-slate-200">
                   <tr>
                     <td colSpan={4} className="py-2.5 px-3 text-[#123B5D]">
-                      Kabuuan (Total Labor Cost Charged to {currentProject.name}):
+                      Total Labor Cost Charged to {currentProject.name}:
                     </td>
                     <td className="py-2.5 px-3 text-right font-mono text-[#18A999] text-sm">
                       ₱{laborAllocation.totalChargeableLaborExpense.toLocaleString()}
@@ -511,13 +553,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   Official bill of materials, receipt tracking, and hardware supplies delivered to site.
                 </p>
               </div>
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer print:hidden"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Save PDF</span>
-              </button>
+              <div className="flex items-center gap-2 print:hidden">
+                <button
+                  onClick={handleDownloadPdf}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Save PDF</span>
+                </button>
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-[#123B5D] rounded-xl text-xs font-bold hover:bg-slate-50 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5 text-[#18A999]" />
+                  <span>Print</span>
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto border border-slate-200 rounded-xl">
@@ -584,13 +635,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   Inspection records, daily tasks in-charge, and site condition tracking.
                 </p>
               </div>
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer print:hidden"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Save PDF</span>
-              </button>
+              <div className="flex items-center gap-2 print:hidden">
+                <button
+                  onClick={handleDownloadPdf}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Save PDF</span>
+                </button>
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-[#123B5D] rounded-xl text-xs font-bold hover:bg-slate-50 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5 text-[#18A999]" />
+                  <span>Print</span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">
