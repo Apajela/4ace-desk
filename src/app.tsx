@@ -7,7 +7,6 @@ import {
   PayrollEntry,
   NotificationItem,
   UserProfile as UserProfileType,
-  CustomDomainConfig,
   CompanySettings,
   AttendanceRecord as AttendanceRecordType,
   CashAdvance,
@@ -23,7 +22,6 @@ import {
   DEFAULT_NOTIFICATIONS,
   DEFAULT_USERS,
   DEFAULT_COMPANY,
-  DEFAULT_CUSTOM_DOMAIN,
   DEFAULT_ATTENDANCE,
   DEFAULT_CASH_ADVANCES,
 } from './data/defaultData';
@@ -41,8 +39,6 @@ import { CompletedProjectsView } from './components/CompletedProjectsView';
 import { ReceiptScannerModal as ReceiptScanner } from './components/ReceiptScanner';
 import { NotificationModal as Notification } from './components/Notification';
 import { UserProfileModal as UserProfile } from './components/UserProfile';
-import { CustomDomain } from './components/CustomDomain';
-import { SoftwareGuideModal as SoftwareGuide } from './components/SoftwareGuide';
 import { ProjectModal } from './components/Project';
 
 export default function App() {
