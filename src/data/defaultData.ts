@@ -8,6 +8,7 @@ import {
   Expense,
   SitePriority,
   AppNotification,
+  CustomDomainConfig,
   PayrollEntry,
 } from '../types';
 
@@ -601,3 +602,12 @@ export const DEFAULT_NOTIFICATIONS: AppNotification[] = [
   },
 ];
 
+export const DEFAULT_CUSTOM_DOMAIN: CustomDomainConfig = {
+  domain: 'portal.4acedesk.ph',
+  configured: true,
+  verified: true,
+  records: [
+    { type: 'CNAME', host: 'portal', value: 'cname.4acedesk.ph' },
+    { type: 'TXT', host: '_verify.portal', value: '4ace-verification-hash-88912' },
+  ],
+};
