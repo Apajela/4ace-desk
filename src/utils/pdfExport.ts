@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Project, CompanySettings, PayrollEntry, ExpenseItem, PayrollItemData } from '../types';
+import { Project, CompanySettings, PayrollEntry, ExpenseItem, PayrollItemData, UserProfile } from '../types';
 
 /**
  * Clean PDF Exporter for 4Ace Desk Construction ERP
@@ -10,7 +10,8 @@ import { Project, CompanySettings, PayrollEntry, ExpenseItem, PayrollItemData } 
 export const exportExecutiveReportPdf = (
   project: Project,
   laborAllocation: any,
-  expenses: ExpenseItem[]
+  expenses: ExpenseItem[],
+  userProfile?: UserProfile
 ) => {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -142,19 +143,19 @@ export const exportExecutiveReportPdf = (
   doc.setTextColor(...primaryColor);
 
   // Signatory 1
-  doc.text('Engr. Arriana Daoag', 30, signY + 15, { align: 'center' });
+  doc.text(userProfile?.signatureApprovedBy || userProfile?.name || 'Managing Contractor', 30, signY + 15, { align: 'center' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.text('Managing Contractor (PRC-CE-0149204)', 30, signY + 19, { align: 'center' });
+  if (userProfile?.signatureApprovedTitle) doc.text(userProfile.signatureApprovedTitle, 30, signY + 19, { align: 'center' });
   doc.line(14, signY + 11, 46, signY + 11);
 
   // Signatory 2
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  doc.text('Engr. Mark Santos', 105, signY + 15, { align: 'center' });
+  if (userProfile?.signatureEngineerName) doc.text(userProfile.signatureEngineerName, 105, signY + 15, { align: 'center' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.text('Senior Project Engineer & Estimator', 105, signY + 19, { align: 'center' });
+  if (userProfile?.signatureEngineerTitle) doc.text(userProfile.signatureEngineerTitle, 105, signY + 19, { align: 'center' });
   doc.line(89, signY + 11, 121, signY + 11);
 
   // Signatory 3
@@ -163,7 +164,7 @@ export const exportExecutiveReportPdf = (
   doc.text(project.client || 'Project Owner', 170, signY + 15, { align: 'center' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.text('Client / Conforme', 170, signY + 19, { align: 'center' });
+  if (userProfile?.signatureClientTitle) doc.text(userProfile.signatureClientTitle, 170, signY + 19, { align: 'center' });
   doc.line(154, signY + 11, 186, signY + 11);
 
   doc.setFontSize(7);
@@ -411,7 +412,7 @@ export const exportPayrollMasterPdf = (
 
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.text('Prepared By: Site Timekeeper', 14, finalY + 25);
+  doc.text('Prepared By:', 14, finalY + 25);
   doc.text(`Audited By: ${project.supervisor}`, 105, finalY + 25);
   doc.text('Approved By: Managing Contractor', 200, finalY + 25);
 
