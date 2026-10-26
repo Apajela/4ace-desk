@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Printer,
+  Download,
   X,
   ChevronLeft,
   ChevronRight,
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Worker, CompanySettings, Project, PayrollItemData } from '../types';
 import { triggerBrowserPrint } from '../utils/printReport';
+import { exportSinglePayslipPdf } from '../utils/pdfExport';
 
 export interface PayslipProps {
   isOpen: boolean;
@@ -58,6 +60,19 @@ export const Payslip: React.FC<PayslipProps> = ({
     triggerBrowserPrint();
   };
 
+  const handleDownloadPdf = () => {
+    if (mode === 'single') {
+      exportSinglePayslipPdf(activeProject, company, currentItem, startDate, endDate);
+    } else {
+      // Export current item or iterate
+      payrollItems.forEach((item, index) => {
+        setTimeout(() => {
+          exportSinglePayslipPdf(activeProject, company, item, startDate, endDate);
+        }, index * 200);
+      });
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="relative w-full max-w-3xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
@@ -101,12 +116,20 @@ export const Payslip: React.FC<PayslipProps> = ({
               </button>
             </div>
             <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#18A999] hover:bg-[#148f81] text-white font-bold text-xs shadow-sm transition-colors cursor-pointer"
-              title="Save as PDF or Print Payslips"
+              onClick={handleDownloadPdf}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#18A999] hover:bg-[#148f81] text-white font-bold text-xs shadow-sm transition-colors cursor-pointer"
+              title="Download clean PDF file directly"
             >
-              <Printer className="w-4 h-4" />
-              <span>Save PDF / Print {mode === 'all' ? 'All Payslips' : 'Payslip'}</span>
+              <Download className="w-4 h-4" />
+              <span>Save PDF</span>
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-[#123B5D] font-bold text-xs shadow-sm transition-colors cursor-pointer"
+              title="Open browser print dialog"
+            >
+              <Printer className="w-4 h-4 text-[#18A999]" />
+              <span>Print {mode === 'all' ? 'All' : 'Slip'}</span>
             </button>
             <button
               onClick={onClose}
@@ -260,7 +283,7 @@ export const Payslip: React.FC<PayslipProps> = ({
               <div className="p-3 bg-[#EAF7FA] border border-[#18A999]/30 rounded-xl text-xs text-[#123B5D] flex items-center justify-between print:hidden">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-[#18A999] shrink-0" />
-                  <span>Displaying all <strong>{payrollItems.length}</strong> worker payslips for simultaneous batch printing. Click the Print button above.</span>
+                  <span>Displaying all <strong>{payrollItems.length}</strong> worker payslips for simultaneous batch printing. Click Print above.</span>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
