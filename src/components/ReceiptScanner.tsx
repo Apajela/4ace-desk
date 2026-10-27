@@ -39,87 +39,45 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
   const [scanComplete, setScanComplete] = useState(false);
   const [extracted, setExtracted] = useState<ExtractedData | null>(null);
 
-  const sampleReceipts = [
-    {
-      title: 'Wilcon Depot - Cement & Tie Wires',
-      url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&auto=format&fit=crop&q=80',
-      data: {
-        vendor: 'Wilcon Depot Taguig Fort',
-        tinNumber: '000-345-678-000-VAT',
-        invoiceNo: 'WD-2026-99318',
-        date: new Date().toISOString().split('T')[0],
-        amount: 38450,
-        vatAmount: 4119.64,
-        category: 'Materials' as ExpenseCategory,
-        description: '140 Bags Portland Cement Type 1 + 10 rolls #16 G.I. Tie Wire',
-        lineItems: [
-          { item: 'Holcim Excel Portland Cement 40kg', qty: 140, unitPrice: 255, total: 35700 },
-          { item: 'G.I. Tie Wire #16 (1kg roll)', qty: 25, unitPrice: 110, total: 2750 },
-        ],
-      },
-    },
-    {
-      title: 'Petron - Site Generator Fuel Slip',
-      url: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?w=800&auto=format&fit=crop&q=80',
-      data: {
-        vendor: 'Petron Service Station C5 Taguig',
-        tinNumber: '000-112-998-002-NVAT',
-        invoiceNo: 'PET-2026-4402',
-        date: new Date().toISOString().split('T')[0],
-        amount: 18600,
-        vatAmount: 1992.86,
-        category: 'Fuel' as ExpenseCategory,
-        description: '300 Liters Diesel Fuel for Tower Crane & Site Generator',
-        lineItems: [
-          { item: 'Petron Diesel Max (Liters)', qty: 300, unitPrice: 62.0, total: 18600 },
-        ],
-      },
-    },
-    {
-      title: 'SafetyFirst QC - PPE Hardhats & Harnesses',
-      url: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=800&auto=format&fit=crop&q=80',
-      data: {
-        vendor: 'SafetyFirst Industrial Supplies QC',
-        tinNumber: '440-192-831-000-VAT',
-        invoiceNo: 'SF-2026-8812',
-        date: new Date().toISOString().split('T')[0],
-        amount: 21500,
-        vatAmount: 2303.57,
-        category: 'Safety & Tools' as ExpenseCategory,
-        description: '20 pcs Safety Full Body Harness with Lanyard + 30 ANSI Hardhats',
-        lineItems: [
-          { item: 'Full Body Safety Harness w/ Double Lanyard', qty: 10, unitPrice: 1450, total: 14500 },
-          { item: 'Yellow Industrial Hardhat (Class E)', qty: 20, unitPrice: 350, total: 7000 },
-        ],
-      },
-    },
-  ];
+  const processOcr = async (file: File) => {
+    setIsScanning(true);
+    setScanComplete(false);
+    setExtracted(null);
+    try {
+      const { createWorker } = await import('tesseract.js');
+      const worker = await createWorker('eng');
+      const result = await worker.recognize(file);
+      await worker.terminate();
+      const text = result.data.text || '';
+      const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const amountMatches = [...text.matchAll(/(?:₱|PHP\s*)?\s*([0-9][0-9,]*\.\d{2})/gi)]
+        .map((m) => Number(m[1].replace(/,/g, ''))).filter((n) => Number.isFinite(n) && n > 0);
+      const amount = amountMatches.length ? Math.max(...amountMatches) : 0;
+      const invoiceLine = lines.find((line) => /invoice|receipt|or no|official receipt/i.test(line)) || '';
+      const dateMatch = text.match(/\b(20\d{2})[-/](\d{1,2})[-/](\d{1,2})\b/);
+      const date = dateMatch ? `${dateMatch[1]}-${dateMatch[2].padStart(2,'0')}-${dateMatch[3].padStart(2,'0')}` : new Date().toISOString().split('T')[0];
+      const vendor = lines.find((line) => /[a-z]{3,}/i.test(line) && !/invoice|receipt|vat|total|date|cashier/i.test(line)) || '';
+      const invoiceNo = (invoiceLine.match(/(?:no\.?|#|number)\s*[:#-]?\s*([A-Z0-9/-]{4,})/i) || [])[1] || '';
+      const vatMatch = text.match(/(?:VAT|EVAT)[^0-9]{0,15}([0-9,]+\.\d{2})/i);
+      setExtracted({ vendor, tinNumber: (text.match(/\b\d{3}-\d{3}-\d{3}-\d{3}\b/) || [])[0] || '',
+        invoiceNo, date, amount, category: 'Materials', description: lines.slice(0, 8).join(' ').slice(0, 500),
+        vatAmount: vatMatch ? Number(vatMatch[1].replace(/,/g,'')) : 0, lineItems: [] });
+      setScanComplete(true);
+    } catch (error) {
+      console.error('Receipt OCR failed:', error);
+      alert('OCR could not start. Check your internet connection and upload again. You can still enter the receipt details manually.');
+      setExtracted({ vendor: '', tinNumber: '', invoiceNo: '', date: new Date().toISOString().split('T')[0],
+        amount: 0, category: 'Materials', description: '', vatAmount: 0, lineItems: [] });
+    } finally { setIsScanning(false); }
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImagePreview(reader.result as string);
-        processOcr(sampleReceipts[0].data);
-      };
-      reader.readAsDataURL(file);
+    if (file && file.type.startsWith('image/')) {
+      setImagePreview(URL.createObjectURL(file));
+      void processOcr(file);
     }
-  };
-
-  const handleSelectSample = (sample: (typeof sampleReceipts)[0]) => {
-    setImagePreview(sample.url);
-    processOcr(sample.data);
-  };
-
-  const processOcr = (extractedPreset: ExtractedData) => {
-    setIsScanning(true);
-    setScanComplete(false);
-    setTimeout(() => {
-      setExtracted(extractedPreset);
-      setIsScanning(false);
-      setScanComplete(true);
-    }, 1200);
+    e.currentTarget.value = '';
   };
 
   const handleApplyToExpenses = () => {
@@ -161,7 +119,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                 AI Construction Receipt &amp; Invoice Scanner
               </h3>
               <p className="text-[11px] text-white/80">
-                Optical OCR auto-detects vendor TIN, BIR Official Receipts, VAT, and line items
+                OCR reads uploaded receipt images; review extracted fields before saving
               </p>
             </div>
           </div>
@@ -225,25 +183,6 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                 />
               </label>
             )}
-
-            <div>
-              <p className="text-[11px] font-bold text-[#123B5D] mb-1.5">
-                Or test with sample hardware receipts:
-              </p>
-              <div className="space-y-1.5">
-                {sampleReceipts.map((s, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleSelectSample(s)}
-                    className="w-full text-left px-3 py-2 text-xs bg-[#EAF7FA]/60 hover:bg-[#EAF7FA] rounded-lg text-[#263238] flex items-center justify-between transition-colors cursor-pointer border border-slate-200/60"
-                  >
-                    <span className="truncate font-medium">{s.title}</span>
-                    <span className="text-[#18A999] font-bold ml-2">₱{s.data.amount.toLocaleString()}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           <div className="flex flex-col justify-between space-y-4">
@@ -255,7 +194,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                 </span>
                 {scanComplete && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EAF7FA] text-[#18A999] border border-[#18A999]/30 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> 100% Extracted
+                    <CheckCircle2 className="w-3 h-3" /> OCR Complete
                   </span>
                 )}
               </div>
@@ -356,7 +295,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] text-[#263238]/70 pt-1 border-t border-slate-200">
-                    <span>12% BIR EVAT included:</span>
+                    <span>Detected VAT:</span>
                     <strong className="text-[#123B5D]">₱{extracted.vatAmount.toLocaleString()}</strong>
                   </div>
                 </div>
@@ -365,7 +304,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                   <FileText className="w-10 h-10 text-[#123B5D]/30 mb-2" />
                   <p className="text-xs font-bold text-[#123B5D]">No Receipt Loaded Yet</p>
                   <p className="text-[11px] text-[#263238]/60 mt-1 max-w-[200px]">
-                    Upload a receipt photo or click one of the sample presets to test the OCR engine.
+                    Upload a receipt photo. OCR suggests editable fields; verify all values before saving.
                   </p>
                 </div>
               )}

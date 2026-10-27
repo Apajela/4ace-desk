@@ -24,6 +24,7 @@ import {
   SitePriority,
   UserProfile,
   CompanySettings,
+  AppNotification,
 } from '../types';
 
 export interface DashboardViewProps {
@@ -34,6 +35,7 @@ export interface DashboardViewProps {
   attendance: AttendanceRecord[];
   cashAdvances: CashAdvance[];
   priorities: SitePriority[];
+  notifications?: AppNotification[];
   currentUser: UserProfile;
   company: CompanySettings;
   onNavigateTab: (tab: string) => void;
@@ -54,6 +56,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   workers,
   attendance,
   priorities,
+  notifications = [],
   currentUser,
   onNavigateTab,
   onOpenAttendanceModal,
@@ -190,6 +193,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const activeProjects = allProjects.filter((project) => project.status !== 'Completed' && project.status !== 'Cancelled');
     return <div className="space-y-5">
       <h1 className="text-2xl font-black text-[#123B5D]">My Active Projects</h1>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between gap-2"><h2 className="font-black text-[#123B5D]">Notifications</h2><span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-700">{notifications.filter((n) => !n.read).length} unread</span></div>
+          {notifications.slice(0, 4).length ? notifications.slice(0, 4).map((n) => <div key={n.id} className="border-t border-slate-100 py-3"><div className="flex items-start justify-between gap-2"><p className="text-sm font-bold text-slate-800">{n.title}</p><span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${n.type === 'alert' ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'}`}>{n.type === 'alert' ? 'Important' : 'Update'}</span></div><p className="mt-1 text-xs text-slate-600">{n.message}</p><p className="mt-1 text-[10px] text-slate-400">{n.timestamp}</p></div>) : <p className="py-4 text-sm text-slate-500">No notifications yet.</p>}
+        </section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between gap-2"><h2 className="font-black text-[#123B5D]">Priority Tasks</h2><button type="button" onClick={() => onNavigateTab('priorities')} className="rounded-lg bg-[#EAF7FA] px-3 py-1.5 text-xs font-bold text-[#123B5D]">View priorities</button></div>
+          {priorities.filter((p) => !p.completed).slice(0, 4).map((p) => <div key={p.id} className="flex items-start gap-2 border-t border-slate-100 py-3"><span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${p.priority === 'urgent' || p.priority === 'critical' ? 'bg-rose-500' : p.priority === 'high' ? 'bg-amber-500' : 'bg-sky-500'}`} /><div><p className="text-sm font-bold text-slate-800">{p.title}</p><p className="mt-1 text-xs text-slate-500">{p.priority.toUpperCase()} PRIORITY {p.assignedTo ? `• ${p.assignedTo}` : ''}</p></div></div>)}
+          {!priorities.some((p) => !p.completed) && <p className="py-4 text-sm text-slate-500">No pending priorities.</p>}
+        </section>
+      </div>
       {activeProjects.length === 0 ? <section className="rounded-2xl border border-emerald-200 bg-white p-8 text-center"><div className="text-4xl">🎉</div><h2 className="mt-3 text-xl font-black text-[#123B5D]">Congratulations!</h2><p className="mt-2 text-sm text-slate-600">All projects have been completed. Thank you for using 4Ace Desk!</p></section> : activeProjects.map((project) => <button type="button" key={project.id} onClick={() => onSelectProject(project.id)} className="w-full rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-[#18A999]">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-black text-[#123B5D]">{project.name}</h2><p className="text-sm text-slate-500">{project.code}</p></div><span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{project.status}</span></div>
         <p className="mt-3 text-sm text-slate-700">Client: {project.client} • {project.location}</p><div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">Accomplishment</span><strong className="text-[#123B5D]">{Number(project.progress || 0).toFixed(1)}%</strong></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#18A999]" style={{width: `${Math.max(0,Math.min(100,Number(project.progress)||0))}%`}} /></div>

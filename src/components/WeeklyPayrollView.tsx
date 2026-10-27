@@ -185,7 +185,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
   const mondayKey = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
   const laborAlreadyPosted = expenses.some((expense) => expense.projectId === currentProject.id && expense.category === 'Labor' && !!expense.date && expense.date >= mondayKey && expense.date <= todayKey);
   const isFridayCompletionPosting = today.getDay() === 5 && currentProject.targetDate === todayKey;
-  const postingDayAllowed = today.getDay() === 0 || today.getDay() === 6 || isFridayCompletionPosting;
+  const postingDayAllowed = true;
   const projectIsClosed = ['Completed','Cancelled'].includes(currentProject.status);
   const totalWeeklyPayroll = activePayroll.reduce((acc, curr) => acc + (curr.netPay || 0), 0);
 
@@ -324,7 +324,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             </span>
           </div>
           <p className="text-xs sm:text-sm text-[#546e7a] mt-0.5">
-            Calculation of wages, overtime, cash advance deductions, past cutoff review, and printable payslips.
+            Release payroll on any day. Wages are based on saved DTR entries, overtime, and cash advance deductions.
           </p>
         </div>
 

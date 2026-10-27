@@ -338,6 +338,12 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
         </div>
       </div>
 
+      {activeSubTab === 'attendance' && (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-relaxed text-slate-700">
+          <strong className="text-[#123B5D]">DTR / Payroll computation:</strong> Saved daily attendance is the source record. Present or overtime shift = 1 day (8 regular hours); half-day = 0.5 day (4 hours); absent = 0 day. Approved OT hours are counted separately at 1.25× the hourly rate. Weekly gross pay = (days worked × daily rate) + OT pay. Review the date, status, and OT hours before selecting Save &amp; Sync.
+        </div>
+      )}
+
       {/* Navigation Sub-Tabs Switcher */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#EAF7FA] p-2 rounded-2xl border border-[#cbeaf0]">
         <div className="flex items-center gap-2">
