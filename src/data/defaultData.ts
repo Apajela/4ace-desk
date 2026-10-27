@@ -65,6 +65,22 @@ export const DEFAULT_COMPANY: CompanySettings = {
 
 export const DEFAULT_PROJECTS: Project[] = [
   {
+    id: 'proj-history-rr-01',
+    name: 'Residential Renovation',
+    code: '4ACE-RR-01',
+    client: 'Atty. Roberto Valenzuela',
+    location: 'Antipolo Hills, Rizal',
+    category: 'Residential',
+    status: 'Completed',
+    budget: 250000,
+    spent: 250000,
+    startDate: '2026-01-05',
+    targetDate: '2026-06-30',
+    supervisor: 'Project Team',
+    progress: 100,
+    description: 'Completed residential renovation project history record.',
+  },
+  {
     id: 'proj-1',
     name: 'Residential Renovation',
     code: '4ACE-RR-01',
