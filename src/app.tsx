@@ -378,7 +378,7 @@ export default function App() {
     }
     if (!target || ['Completed','Cancelled'].includes(target.status)) return;
     setProjects((prev) =>
-      prev.map((p) => (p.id === projId ? { ...p, status: 'Completed' } : p))
+      prev.map((p) => (p.id === projId ? { ...p, status: 'Completed', endDate: todayKey } : p))
     );
 
     // If current project is completed, switch active selector to another active project
@@ -772,9 +772,10 @@ export default function App() {
     const ownAttendance = all['4ace_attendance'].filter((x) => workerIds.has(x.workerId) || x.workerName?.trim().toLowerCase() === name);
     const projectIds = new Set<string>([...ownWorkers.map((x) => x.assignedProject), ...ownAttendance.map((x) => x.projectId), currentProjectId].filter((id): id is string => typeof id === 'string' && id.length > 0));
     const latestTen = (key: string, items: any[]) => {
-      if (key === '4ace_attendance') return [...items].sort((a,b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0,3);
-      if (['4ace_projects','4ace_expenses','4ace_priorities','4ace_notifications','4ace_cash_advances'].includes(key)) return items.slice(0,3);
-      return items.slice(-3);
+      const dateValue = (item: any) => String(item.date || item.createdAt || item.timestamp || item.startDate || item.updatedAt || '');
+      return [...items]
+        .sort((a, b) => dateValue(b).localeCompare(dateValue(a)))
+        .slice(0, 8);
     };
     const filterOwn = (key: string, items: any[]) => {
       if (isFullAccess) return latestTen(key, items);
@@ -787,6 +788,9 @@ export default function App() {
     };
     const data: Record<string, unknown> = { format: '4ace-desk-local-backup', version: 2, exportedAt: new Date().toISOString(), accountId: currentUser?.id, accountName: currentUser?.name };
     keys.forEach((key) => { data[key] = filterOwn(key, all[key]); });
+    const exportSummary = keys.map((key) => `${key.replace('4ace_', '')}: ${(data[key] as unknown[]).length}`).join('\n');
+    const totalExported = keys.reduce((sum, key) => sum + (data[key] as unknown[]).length, 0);
+    if (!window.confirm(`Export backup data?\nMaximum: 8 entries per category (up to 64 total across 8 categories).\n\n${exportSummary}\n\nTotal entries to export: ${totalExported}`)) return;
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `4ace-desk-backup-${new Date().toISOString().slice(0,10)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -984,6 +988,7 @@ export default function App() {
             onCancelProject={isFullAccess ? handleCancelProject : undefined}
             onDeleteProject={isFullAccess ? handleDeleteProject : undefined}
             onSelectProjectForReports={handleSelectProjectForReports}
+            isFullAccess={isFullAccess}
           />
         )}
         </main>

@@ -49,6 +49,7 @@ export interface Project {
   spent: number;
   startDate: string;
   targetDate: string;
+  endDate?: string;
   supervisor: string;
   progress: number;
   description: string;
