@@ -39,6 +39,7 @@ import { ReceiptScannerModal as ReceiptScanner } from './components/ReceiptScann
 import { NotificationModal as Notification } from './components/Notification';
 import { UserProfileModal as UserProfile } from './components/UserProfile';
 import { ProjectModal } from './components/Project';
+import { ReportsView } from './components/ReportsView';
 
 export default function App() {
   // Safe LocalStorage Helper
@@ -252,6 +253,23 @@ export default function App() {
 
   // Expenses Handlers
   const handleAddExpense = (newExpense: Omit<ExpenseItem, 'id'>) => {
+    if (newExpense.category === 'Labor') {
+      const now = new Date();
+      const todayKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      const day = now.getDay();
+      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((day + 6) % 7));
+      const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
+      const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+      const weekStartKey = dateKey(weekStart);
+      const weekEndKey = dateKey(weekEnd);
+      const targetProject = projects.find((project) => project.id === newExpense.projectId);
+      const alreadyPosted = expenses.some((expense) => expense.projectId === newExpense.projectId && expense.category === 'Labor' && expense.date >= weekStartKey && expense.date <= weekEndKey);
+      const allowedDay = day === 0 || day === 6 || (day === 5 && !!targetProject && targetProject.targetDate === todayKey);
+      if (!isFullAccess || alreadyPosted || !allowedDay || newExpense.date !== todayKey || !targetProject || ['Completed','Cancelled'].includes(targetProject.status)) {
+        setNotifications((prev) => [{ id: `notif-${Date.now()}`, title: 'Labor Expense Not Posted', message: alreadyPosted ? 'Labor expenses have already been posted for this project this week.' : 'Labor expenses may be posted with today’s date on Saturday or Sunday, or on Friday when the project ends that Friday.', type: 'alert', timestamp: 'Just now', read: false, actionTab: 'payroll' }, ...prev]);
+        return;
+      }
+    }
     const newItem: ExpenseItem = {
       ...newExpense,
       id: `exp-${Date.now()}`,
@@ -337,9 +355,23 @@ export default function App() {
     setNotifications((prev) => [notif, ...prev]);
   };
 
-  // Completed Project Handler
+  // A project may only be completed after its labor for the current Monday–Sunday week is posted.
   const handleCompleteProject = (projId: string) => {
     const target = projects.find((p) => p.id === projId);
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
+    const weekStartKey = `${weekStart.getFullYear()}-${String(weekStart.getMonth()+1).padStart(2,'0')}-${String(weekStart.getDate()).padStart(2,'0')}`;
+    const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
+    const weekEndKey = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth()+1).padStart(2,'0')}-${String(weekEnd.getDate()).padStart(2,'0')}`;
+    const hasLaborExpense = expenses.some((expense) => expense.projectId === projId && expense.category === 'Labor' && expense.date >= weekStartKey && expense.date <= weekEndKey);
+    if (target && target.status !== 'Completed' && !hasLaborExpense) {
+      setNotifications((prev) => [{ id: `notif-${Date.now()}`, title: 'Post Labor Expenses First', message: `Post the final weekly labor expenses for ${target.name} before marking it completed.`, type: 'alert', timestamp: 'Just now', read: false, actionTab: 'payroll' }, ...prev]);
+      setCurrentProjectId(projId);
+      setActiveTab('payroll');
+      return;
+    }
+    if (!target || ['Completed','Cancelled'].includes(target.status)) return;
     setProjects((prev) =>
       prev.map((p) => (p.id === projId ? { ...p, status: 'Completed' } : p))
     );
@@ -436,6 +468,11 @@ export default function App() {
   };
 
   const handleMarkAllPayrollPaid = () => {
+    if (new Date().getDay() !== 0) {
+      setNotifications((prev) => [{ id: `notif-${Date.now()}`, title: 'Weekly Payroll Release', message: 'Weekly wages can be released on Sunday only.', type: 'alert', timestamp: 'Just now', read: false, actionTab: 'payroll' }, ...prev]);
+      setActiveTab('payroll');
+      return;
+    }
     setPayroll((prev) =>
       prev.map((p) => ({
         ...p,
@@ -456,46 +493,65 @@ export default function App() {
     setNotifications((prev) => [notif, ...prev]);
   };
 
-  // Daily Attendance Handler
+  // Save each worker's attendance against the project they worked on for that specific date.
   const handleSaveAttendance = (
     date: string,
-    records: Record<string, { status: AttendanceStatus; otHours: number; remarks: string }>
+    records: Record<string, { status: AttendanceStatus; otHours: number; remarks: string; projectId: string }>
   ) => {
-    setPayroll((prev) =>
-      prev.map((entry) => {
-        const att = records[entry.workerId];
-        if (!att) return entry;
-        let addedDays = 0;
-        if (att.status === 'present' || att.status === 'overtime') addedDays = 1;
-        else if (att.status === 'half_day') addedDays = 0.5;
-
-        const newDays = Math.min(6, (entry.daysWorked || 0) + addedDays);
-        const newOt = (entry.otHours || 0) + (att.otHours || 0);
-        const regularPay = newDays * entry.dailyRate;
-        const hourlyRate = entry.dailyRate / 8;
-        const otPay = hourlyRate * 1.25 * newOt;
-        const grossPay = regularPay + otPay;
-        const netPay = Math.max(0, grossPay - (entry.totalDeductions || 0));
-        return {
-          ...entry,
-          daysWorked: newDays,
-          otHours: newOt,
-          regularPay,
-          otPay,
-          grossPay,
-          netPay,
-        };
-      })
-    );
-
+    const savedRecords = Object.entries(records).map(([workerId, record]) => {
+      const worker = workers.find((item) => item.id === workerId);
+      const existing = attendance.find((item) => item.workerId === workerId && item.date === date);
+      const status = record.status;
+      const absent = status === 'absent';
+      const halfDay = status === 'half_day';
+      const hoursWorked = absent ? 0 : halfDay ? 4 : 8;
+      return {
+        id: existing?.id || `att-${workerId}-${date}`,
+        workerId,
+        workerName: worker?.name || existing?.workerName || workerId,
+        trade: worker?.role || existing?.trade || '',
+        projectId: record.projectId || existing?.projectId || worker?.assignedProject || currentProjectId,
+        date,
+        timeIn: absent ? '' : existing?.timeIn || '07:00 AM',
+        timeOut: absent ? '' : existing?.timeOut || '05:00 PM',
+        status,
+        hoursWorked,
+        overtimeHours: Math.max(0, Number(record.otHours) || 0),
+        otHours: Math.max(0, Number(record.otHours) || 0),
+        dailyWage: worker?.dailyRate || existing?.dailyWage || 0,
+        dailyRate: worker?.dailyRate || existing?.dailyRate || 0,
+        notes: record.remarks || '',
+        remarks: record.remarks || '',
+        verifiedBy: currentUser?.name || existing?.verifiedBy || 'Site In-Charge',
+      } as AttendanceRecordType;
+    });
+    const savedKeys = new Set(savedRecords.map((item) => `${item.workerId}:${item.date}`));
+    const nextAttendance = attendance.filter((item) => !savedKeys.has(`${item.workerId}:${item.date}`)).concat(savedRecords);
+    setAttendance(nextAttendance);
+    const today = new Date();
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
+    const mondayKey = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+    const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
+    const sundayKey = `${sunday.getFullYear()}-${String(sunday.getMonth()+1).padStart(2,'0')}-${String(sunday.getDate()).padStart(2,'0')}`;
+    setPayroll((previousPayroll) => previousPayroll.map((entry) => {
+      const weekRecords = nextAttendance.filter((item) => item.workerId === entry.workerId && item.date >= mondayKey && item.date <= sundayKey);
+      if (weekRecords.length === 0) return entry;
+      const daysWorked = Math.min(6, weekRecords.reduce((total, item) => {
+        const state = String(item.status).toLowerCase();
+        return total + (state === 'absent' ? 0 : state === 'half_day' || state === 'half day' ? 0.5 : 1);
+      }, 0));
+      const otHours = weekRecords.reduce((total, item) => total + (Number(item.otHours ?? item.overtimeHours) || 0), 0);
+      const regularPay = daysWorked * entry.dailyRate;
+      const otPay = (entry.dailyRate / 8) * 1.25 * otHours;
+      const grossPay = regularPay + otPay;
+      const netPay = Math.max(0, grossPay - (entry.totalDeductions || 0));
+      return { ...entry, daysWorked, otHours, overtimeHours: otHours, regularPay, otPay, grossPay, netPay };
+    }));
     const notif: NotificationItem = {
       id: `notif-${Date.now()}`,
-      title: 'Daily Attendance Synced',
-      message: `Site attendance logged for ${date}. Field wages automatically synchronized into weekly payroll.`,
-      type: 'attendance',
-      timestamp: 'Just now',
-      read: false,
-      actionTab: 'payroll',
+      title: 'Daily Attendance Saved',
+      message: `Attendance for ${date} was saved with each worker's project assignment for that day. Weekly payroll was recalculated without duplicate day counting.`,
+      type: 'attendance', timestamp: 'Just now', read: false, actionTab: 'payroll', actionUrl: 'payroll',
     };
     setNotifications((prev) => [notif, ...prev]);
   };
@@ -679,15 +735,24 @@ export default function App() {
     );
   };
 
-  // Post Prorated Labor to Project Expenses
+  // Enforce labor posting rules in the data handler too (not just by disabling the UI).
   const handlePostLaborExpense = (amount: number, description: string) => {
+    const now = new Date();
+    const dateKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const day = now.getDay();
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((day + 6) % 7));
+    const weekStartKey = `${weekStart.getFullYear()}-${String(weekStart.getMonth()+1).padStart(2,'0')}-${String(weekStart.getDate()).padStart(2,'0')}`;
+    const alreadyPosted = expenses.some((item) => item.projectId === activeProject.id && item.category === 'Labor' && item.date >= weekStartKey && item.date <= dateKey);
+    const fridayCompletionAllowed = day === 5 && activeProject.targetDate === dateKey;
+    const allowedDay = day === 0 || day === 6 || fridayCompletionAllowed;
+    if (!isFullAccess || !allowedDay || alreadyPosted || ['Completed','Cancelled'].includes(activeProject.status)) return;
     const expense: ExpenseItem = {
       id: `exp-${Date.now()}`,
       projectId: activeProject.id,
       projectName: activeProject.name,
       category: 'Labor',
-      amount,
-      date: new Date().toISOString().split('T')[0],
+      amount: Math.max(0, Number(amount) || 0),
+      date: dateKey,
       vendor: 'Site Field Crew & Subcontractors',
       supplier: 'Weekly Field Labor Payroll',
       description,
@@ -698,6 +763,81 @@ export default function App() {
   };
 
   const isFullAccess = !!currentUser && currentUser.accessLevel === 'Full Access (Admin)';
+  const exportLocalData = () => {
+    const keys = ['4ace_projects','4ace_workers','4ace_attendance','4ace_cash_advances','4ace_priorities','4ace_payroll','4ace_expenses','4ace_notifications'];
+    const name = currentUser?.name?.trim().toLowerCase() || '';
+    const all: Record<string, any[]> = {};
+    keys.forEach((key) => { try { const v = JSON.parse(localStorage.getItem(key) || '[]'); all[key] = Array.isArray(v) ? v : []; } catch { all[key] = []; } });
+    const ownWorkers = all['4ace_workers'].filter((x) => x.name?.trim().toLowerCase() === name || x.username?.trim().toLowerCase() === currentUser?.username?.toLowerCase());
+    const workerIds = new Set(ownWorkers.map((x) => x.id));
+    const ownAttendance = all['4ace_attendance'].filter((x) => workerIds.has(x.workerId) || x.workerName?.trim().toLowerCase() === name);
+    const projectIds = new Set<string>([...ownWorkers.map((x) => x.assignedProject), ...ownAttendance.map((x) => x.projectId), currentProjectId].filter((id): id is string => typeof id === 'string' && id.length > 0));
+    const latestTen = (key: string, items: any[]) => {
+      if (key === '4ace_attendance') return [...items].sort((a,b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0,10);
+      if (['4ace_projects','4ace_expenses','4ace_priorities','4ace_notifications','4ace_cash_advances'].includes(key)) return items.slice(0,10);
+      return items.slice(-10);
+    };
+    const filterOwn = (key: string, items: any[]) => {
+      if (isFullAccess) return latestTen(key, items);
+      if (key === '4ace_projects') return latestTen(key, items.filter((x) => projectIds.has(x.id)));
+      if (key === '4ace_workers') return latestTen(key, ownWorkers);
+      if (key === '4ace_attendance') return latestTen(key, ownAttendance);
+      if (key === '4ace_cash_advances' || key === '4ace_payroll') return latestTen(key, items.filter((x) => workerIds.has(x.workerId) || x.workerName?.trim().toLowerCase() === name));
+      if (key === '4ace_expenses' || key === '4ace_priorities') return latestTen(key, items.filter((x) => projectIds.has(x.projectId)));
+      return latestTen(key, items.filter((x) => x.userId === currentUser?.id || x.accountId === currentUser?.id));
+    };
+    const data: Record<string, unknown> = { format: '4ace-desk-local-backup', version: 2, exportedAt: new Date().toISOString(), accountId: currentUser?.id, accountName: currentUser?.name };
+    keys.forEach((key) => { data[key] = filterOwn(key, all[key]); });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `4ace-desk-backup-${new Date().toISOString().slice(0,10)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const importLocalData = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(String(reader.result));
+        if (data?.format !== '4ace-desk-local-backup' || ![1,2].includes(Number(data.version))) throw new Error('Invalid 4Ace Desk backup file.');
+        if (!isFullAccess && data.accountId !== currentUser?.id) throw new Error('This backup belongs to another account. Import was cancelled.');
+        const keys = ['4ace_projects','4ace_workers','4ace_attendance','4ace_cash_advances','4ace_priorities','4ace_payroll','4ace_expenses','4ace_notifications'];
+        const name = currentUser?.name?.trim().toLowerCase() || '';
+        const existingProjects = (() => { try { const v=JSON.parse(localStorage.getItem('4ace_projects')||'[]'); return Array.isArray(v)?v:[]; } catch { return []; } })();
+        const existingWorkers = (() => { try { const v=JSON.parse(localStorage.getItem('4ace_workers')||'[]'); return Array.isArray(v)?v:[]; } catch { return []; } })();
+        const ownWorkers = existingWorkers.filter((x) => x.name?.trim().toLowerCase() === name || x.username?.trim().toLowerCase() === currentUser?.username?.toLowerCase());
+        const workerIds = new Set(ownWorkers.map((x) => x.id));
+        const backupWorkers = Array.isArray(data['4ace_workers']) ? data['4ace_workers'].filter((x:any) => x.name?.trim().toLowerCase() === name || x.username?.trim().toLowerCase() === currentUser?.username?.toLowerCase()) : [];
+        const backupAttendance = Array.isArray(data['4ace_attendance']) ? data['4ace_attendance'].filter((x:any) => workerIds.has(x.workerId) || x.workerName?.trim().toLowerCase() === name) : [];
+        const allowedProjects = new Set<string>([...existingProjects.filter((x) => x.supervisor?.trim().toLowerCase() === name || ownWorkers.some((w) => w.assignedProject === x.id)).map((x) => x.id), ...backupWorkers.map((x:any) => x.assignedProject), ...backupAttendance.map((x:any) => x.projectId), currentProjectId].filter((id): id is string => typeof id === 'string' && id.length > 0));
+        keys.forEach((key) => {
+          if (!Array.isArray(data[key])) return;
+          const incoming = data[key].slice(-10);
+          let safeIncoming = incoming;
+          if (!isFullAccess) {
+            if (key === '4ace_projects') safeIncoming = incoming.filter((x:any) => x.supervisor?.trim().toLowerCase() === name || allowedProjects.has(x.id));
+            else if (key === '4ace_workers') safeIncoming = incoming.filter((x:any) => x.name?.trim().toLowerCase() === name || x.username?.trim().toLowerCase() === currentUser?.username?.toLowerCase());
+            else if (key === '4ace_attendance') safeIncoming = incoming.filter((x:any) => workerIds.has(x.workerId) || x.workerName?.trim().toLowerCase() === name);
+            else if (key === '4ace_payroll' || key === '4ace_cash_advances') safeIncoming = incoming.filter((x:any) => workerIds.has(x.workerId) || x.workerName?.trim().toLowerCase() === name);
+            else if (key === '4ace_expenses' || key === '4ace_priorities') safeIncoming = incoming.filter((x:any) => allowedProjects.has(x.projectId));
+            else safeIncoming = incoming.filter((x:any) => x.userId === currentUser?.id || x.accountId === currentUser?.id);
+          }
+          const existing = (() => { try { const v=JSON.parse(localStorage.getItem(key)||'[]'); return Array.isArray(v)?v:[]; } catch { return []; } })();
+          const ids = new Set(safeIncoming.map((item:any) => item.id).filter(Boolean));
+          const isOwned = (item:any) => {
+            if (key === '4ace_projects') return allowedProjects.has(item.id) || item.supervisor?.trim().toLowerCase() === name;
+            if (key === '4ace_workers') return item.name?.trim().toLowerCase() === name || item.username?.trim().toLowerCase() === currentUser?.username?.toLowerCase();
+            if (key === '4ace_attendance') return workerIds.has(item.workerId) || item.workerName?.trim().toLowerCase() === name;
+            if (key === '4ace_payroll' || key === '4ace_cash_advances') return workerIds.has(item.workerId) || item.workerName?.trim().toLowerCase() === name;
+            if (key === '4ace_expenses' || key === '4ace_priorities') return allowedProjects.has(item.projectId);
+            return item.userId === currentUser?.id || item.accountId === currentUser?.id;
+          };
+          const preserved = existing.filter((item:any) => !ids.has(item.id) || (!isFullAccess && !isOwned(item)));
+          localStorage.setItem(key, JSON.stringify([...preserved, ...safeIncoming].slice(-Math.max(10, preserved.length + safeIncoming.length))));
+        });
+        window.alert('Import complete. Existing unrelated records were preserved. The page will reload to apply the imported data.'); window.location.reload();
+      } catch (error) { window.alert(error instanceof Error ? error.message : 'Unable to import backup.'); }
+    };
+    reader.readAsText(file);
+  };
   const allProjectsFinished = projects.length > 0 && projects.every((project) => project.status === 'Completed' || project.status === 'Cancelled') && projects.some((project) => project.status === 'Completed');
   const allowedTabs = isFullAccess ? ['dashboard', 'priorities', 'attendance', 'payroll', 'expenses', 'reports', 'archive'] : ['dashboard', 'priorities', 'payroll'];
   useEffect(() => { if (currentUser && !allowedTabs.includes(activeTab)) setActiveTab('dashboard'); }, [activeTab, currentUser?.accessLevel]);
@@ -741,17 +881,12 @@ export default function App() {
         pendingPrioritiesCount={pendingPrioritiesCount}
       />
 
+      <div className="mx-auto flex w-full max-w-7xl justify-end gap-2 px-4 sm:px-6 lg:px-8 pt-3">
+        <button type="button" onClick={exportLocalData} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-[#123B5D] hover:bg-slate-50">Export Data (Last 10)</button>
+        <label className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-[#123B5D] hover:bg-slate-50">Import Data<input type="file" accept="application/json,.json" className="hidden" onChange={(e) => { importLocalData(e.target.files?.[0]); e.currentTarget.value = ''; }} /></label>
+      </div>
       {/* Responsive workspace sidebar and active module */}
       <div className="flex-1 max-w-7xl mx-auto w-full flex flex-col md:flex-row gap-5 px-4 sm:px-6 lg:px-8 py-6">
-        <aside aria-label="Main navigation" className="md:w-52 md:shrink-0">
-          <nav className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-            {[{ id: 'dashboard', label: 'Projects', icon: '▦' }, { id: 'priorities', label: 'Sites', icon: '⌖' }, { id: 'attendance', label: 'Foremen', icon: '♙' }, { id: 'payroll', label: 'Labor', icon: '₱' }].filter((item) => allowedTabs.includes(item.id)).map((item) => (
-              <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} aria-current={activeTab === item.id ? 'page' : undefined} className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18A999] ${activeTab === item.id ? 'bg-[#123B5D] text-white' : 'text-[#123B5D] hover:bg-[#EAF7FA]'}`}>
-                <span className="w-6 text-center text-lg" aria-hidden="true">{item.icon}</span><span>{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </aside>
         <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
         {activeTab === 'dashboard' && (
           <DashboardView
@@ -815,6 +950,9 @@ export default function App() {
             onLogAttendanceClick={isFullAccess ? () => setShowAttendanceModal(true) : undefined}
             onPostLaborExpense={isFullAccess ? handlePostLaborExpense : undefined}
             currentUser={currentUser}
+            expenses={expenses}
+            attendance={attendance.filter((record) => isFullAccess || record.workerName?.toLowerCase() === currentUser.name.toLowerCase())}
+            projects={projects}
           />
         )}
 
@@ -835,10 +973,7 @@ export default function App() {
         ))}
 
         {activeTab === 'reports' && isFullAccess && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-10 text-center" aria-live="polite">
-            <h1 className="text-xl font-black text-[#123B5D]">Reports</h1>
-            <p className="mt-2 text-sm text-slate-600">Project reports have been cleared as requested.</p>
-          </section>
+          <ReportsView currentProject={activeProject} expenses={expenses} payroll={payroll} priorities={priorities} onCompleteProject={handleCompleteProject} onCancelProject={handleCancelProject} currentUser={currentUser} />
         )}
 
         {activeTab === 'archive' && (

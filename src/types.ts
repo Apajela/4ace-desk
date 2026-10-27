@@ -208,6 +208,7 @@ export interface PayrollItemData {
   cashAdvanceDeduction: number;
   netPay: number;
   isPaid?: boolean;
+  projectWorkDays?: { projectName: string; days: number }[];
 }
 
 export interface PayrollEntry {
