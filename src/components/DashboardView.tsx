@@ -186,6 +186,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     </section>;
   }
 
+  if (!isFullAccess) {
+    const activeProjects = allProjects.filter((project) => project.status !== 'Completed' && project.status !== 'Cancelled');
+    return <div className="space-y-5">
+      <h1 className="text-2xl font-black text-[#123B5D]">My Active Projects</h1>
+      {activeProjects.length === 0 ? <section className="rounded-2xl border border-emerald-200 bg-white p-8 text-center"><div className="text-4xl">🎉</div><h2 className="mt-3 text-xl font-black text-[#123B5D]">Congratulations!</h2><p className="mt-2 text-sm text-slate-600">All projects have been completed. Thank you for using 4Ace Desk!</p></section> : activeProjects.map((project) => <button type="button" key={project.id} onClick={() => onSelectProject(project.id)} className="w-full rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-[#18A999]">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-black text-[#123B5D]">{project.name}</h2><p className="text-sm text-slate-500">{project.code}</p></div><span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{project.status}</span></div>
+        <p className="mt-3 text-sm text-slate-700">Client: {project.client} • {project.location}</p><div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">Accomplishment</span><strong className="text-[#123B5D]">{Number(project.progress || 0).toFixed(1)}%</strong></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#18A999]" style={{width: `${Math.max(0,Math.min(100,Number(project.progress)||0))}%`}} /></div>
+      </button>)}
+    </div>;
+  }
+
   return (
     <div className="space-y-6 text-[#263238]">
       {/* 1. Top Command Center Header - Navy #123B5D with Teal #18A999 Accents */}
@@ -277,6 +288,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      {isFullAccess && <>
       {/* 2. Budget & Labor Operations Summary - Section Background: Ice Blue #EAF7FA */}
       <section className="bg-[#EAF7FA] border border-[#cbeaf0] rounded-3xl p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 px-1">
@@ -754,6 +766,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           )}
         </div>
       </section>
+      </>}
     </div>
   );
 };

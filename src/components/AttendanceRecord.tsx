@@ -30,7 +30,7 @@ export interface AttendanceRecordProps {
   projects?: { id: string; name: string }[];
   onSaveAttendance?: (
     date: string,
-    records: Record<string, { status: AttendanceStatus; otHours: number; remarks: string }>
+    records: Record<string, { status: AttendanceStatus; otHours: number; remarks: string; projectId: string }>
   ) => void;
   onClose?: () => void;
   onAddWorker?: (newWorker: Omit<Worker, 'id'>) => void;
@@ -89,7 +89,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
 
   React.useEffect(() => {
     if (workers && workers.length > 0) {
-      const existingWorkerIds = new Set(data.map((r) => r.workerId));
+      const existingWorkerIds = new Set(data.filter((r) => r.date === filterDate).map((r) => r.workerId));
       const missing = workers
         .filter((w) => !existingWorkerIds.has(w.id))
         .map((w, idx) => ({
@@ -178,8 +178,8 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
 
   const handleBatchSave = () => {
     if (onSaveAttendance) {
-      const recordsMap: Record<string, { status: AttendanceStatus; otHours: number; remarks: string }> = {};
-      data.forEach((r) => {
+      const recordsMap: Record<string, { status: AttendanceStatus; otHours: number; remarks: string; projectId: string }> = {};
+      data.filter((r) => !r.date || r.date === filterDate).forEach((r) => {
         let normalizedStatus: AttendanceStatus = 'present';
         const s = String(r.status).toLowerCase();
         if (s === 'overtime') normalizedStatus = 'overtime';
@@ -190,6 +190,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
           status: normalizedStatus,
           otHours: r.otHours || r.overtimeHours || 0,
           remarks: r.remarks || r.notes || '',
+          projectId: r.projectId || projects[0]?.id || 'proj-1',
         };
       });
       onSaveAttendance(filterDate, recordsMap);
@@ -482,6 +483,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
               <thead className="bg-[#EAF7FA] text-[#123B5D] font-bold uppercase tracking-wider border-b border-[#cbeaf0]">
                 <tr>
                   <th className="py-3 px-3.5">Worker Name</th>
+                  <th className="py-3 px-3">Project Worked Today</th>
                   <th className="py-3 px-3">Trade &amp; Rate</th>
                   <th className="py-3 px-3 text-center">Time In</th>
                   <th className="py-3 px-3 text-center">Time Out</th>
@@ -506,6 +508,11 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
                       <td className="py-3 px-3.5">
                         <div className="font-bold text-[#123B5D]">{item.workerName}</div>
                         <div className="text-[10px] text-[#546e7a] font-mono">ID: {item.workerId}</div>
+                      </td>
+                      <td className="py-3 px-3 min-w-[170px]">
+                        <select aria-label={`Project worked on by ${item.workerName} on ${filterDate}`} value={item.projectId || item.assignedProject || projects[0]?.id || 'proj-1'} onChange={(e) => setData((prev) => prev.map((r) => r.id === item.id ? { ...r, projectId: e.target.value } : r))} className="w-full rounded-lg border border-[#cbeaf0] bg-white px-2 py-1.5 text-xs font-semibold text-[#123B5D]">
+                          {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                        </select>
                       </td>
                       <td className="py-3 px-3">
                         <div className="font-semibold text-[#263238]">{item.trade || 'Worker'}</div>

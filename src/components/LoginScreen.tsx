@@ -49,7 +49,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   // Register / Add User state
   const [regName, setRegName] = useState('');
-  const [regRole, setRegRole] = useState('Project Engineer / Site In-Charge');
+  const [regRole, setRegRole] = useState('');
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regSuccess, setRegSuccess] = useState(false);

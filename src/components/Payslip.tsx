@@ -218,6 +218,10 @@ export const Payslip: React.FC<PayslipProps> = ({
                     <span className="text-[#263238]/70">Days Worked ({currentItem.daysWorked} days):</span>
                     <span className="font-mono font-bold text-[#263238]">{formatCurrency(currentItem.regularPay)}</span>
                   </div>
+                  {currentItem.projectWorkDays && currentItem.projectWorkDays.length > 0 && <div className="border-t border-slate-100 pt-2 mt-2 space-y-1">
+                    <span className="block text-[10px] font-bold uppercase tracking-wide text-[#123B5D]">Project Days Worked</span>
+                    {currentItem.projectWorkDays.map((project) => <div key={project.projectName} className="flex justify-between gap-3"><span className="text-[#263238]/70">{project.projectName}</span><span className="shrink-0 font-mono font-bold">{project.days} {project.days === 1 ? 'day' : 'days'}</span></div>)}
+                  </div>}
                   <div className="flex justify-between py-0.5">
                     <span className="text-[#263238]/70">Overtime Pay ({currentItem.overtimeHours} hrs):</span>
                     <span className="font-mono text-[#18A999] font-bold">{formatCurrency(currentItem.overtimePay)}</span>
