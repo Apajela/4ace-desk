@@ -31,6 +31,7 @@ export interface CompletedProjectsViewProps {
   onCancelProject?: (projectId: string) => void;
   onDeleteProject?: (projectId: string) => void;
   onSelectProjectForReports: (projectId: string) => void;
+  isFullAccess?: boolean;
 }
 
 export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
@@ -41,6 +42,7 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
   onCancelProject,
   onDeleteProject,
   onSelectProjectForReports,
+  isFullAccess = false,
 }) => {
   const [filterStatus, setFilterStatus] = useState<'All' | 'Completed' | 'Cancelled'>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,8 +94,8 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
 
   return (
     <div className="space-y-6 text-[#263238]">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Full archive title is restricted to full-access accounts */}
+      {isFullAccess && <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-xl sm:text-2xl font-black text-[#123B5D] tracking-tight">
@@ -107,10 +109,10 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
             Permanent archive of all completed project turnovers and cancelled contracts. Removed from active site selection.
           </p>
         </div>
-      </div>
+      </div>}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 ${isFullAccess ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4`}>
         <div className="bg-white p-5 rounded-2xl border border-[#cbeaf0] shadow-xs">
           <div className="flex justify-between items-center text-xs font-semibold text-[#546e7a]">
             <span>Completed Turnovers</span>
@@ -126,6 +128,7 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
           </div>
         </div>
 
+        {isFullAccess && (
         <div className="bg-white p-5 rounded-2xl border border-[#cbeaf0] shadow-xs">
           <div className="flex justify-between items-center text-xs font-semibold text-[#546e7a]">
             <span>Total Delivered Value</span>
@@ -140,6 +143,7 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
             Combined contract sum of completed sites
           </div>
         </div>
+        )}
 
         <div className="bg-white p-5 rounded-2xl border border-[#cbeaf0] shadow-xs">
           <div className="flex justify-between items-center text-xs font-semibold text-[#546e7a]">
@@ -246,8 +250,8 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
                   </span>
                 </div>
 
-                {/* Metrics Grid */}
-                <div className="grid grid-cols-3 gap-2 p-3 bg-[#EAF7FA]/50 border border-slate-200/80 rounded-xl text-xs">
+                {/* Financial metrics are full-access only */}
+                {isFullAccess && <div className="grid grid-cols-3 gap-2 p-3 bg-[#EAF7FA]/50 border border-slate-200/80 rounded-xl text-xs">
                   <div>
                     <span className="text-[10px] text-[#546e7a] block uppercase font-bold">Contract Sum</span>
                     <strong className="text-xs text-[#123B5D] font-mono">
@@ -266,16 +270,17 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
                       {proj.progress}%
                     </strong>
                   </div>
+                </div>}
+
+                {/* Regular accounts see only project dates; supervisor is restricted */}
+                <div className={`flex ${isFullAccess ? 'items-center justify-between' : 'flex-col items-start gap-1'} text-[11px] text-[#546e7a] pt-1 border-t border-slate-100`}>
+                  <span>Start Date: <strong>{proj.startDate || 'Not recorded'}</strong></span>
+                  <span>End Date: <strong>{(proj as Project & { endDate?: string }).endDate || proj.targetDate || 'Not recorded'}</strong></span>
+                  {isFullAccess && <span>Supervisor: <strong>{proj.supervisor}</strong></span>}
                 </div>
 
-                {/* Details Footer */}
-                <div className="flex items-center justify-between text-[11px] text-[#546e7a] pt-1 border-t border-slate-100">
-                  <span>Start Date: <strong>{proj.startDate}</strong></span>
-                  <span>Supervisor: <strong>{proj.supervisor}</strong></span>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 flex-wrap">
+                {/* Actions are full-access only */}
+                {isFullAccess && <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 flex-wrap">
                   <div className="flex items-center gap-1.5">
                     {/* Save PDF */}
                     <button
@@ -319,7 +324,7 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
                       <span>Reopen Site</span>
                     </button>
                   </div>
-                </div>
+                </div>}
               </div>
             );
           })}

@@ -159,15 +159,13 @@ export const PrioritiesView: React.FC<PrioritiesViewProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-bold text-[#123B5D]">
-              Site Priorities &amp; Inspection Board
+              Today Priorities
             </h1>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#EAF7FA] text-[#123B5D] font-semibold border border-[#cbeaf0]">
               {currentProject.name}
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-[#546e7a] mt-1">
-            Track daily critical path milestones, pouring clearances, trade handovers, and safety checklists.
-          </p>
+
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

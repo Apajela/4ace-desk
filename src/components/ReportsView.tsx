@@ -46,7 +46,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   onCancelProject,
   currentUser,
 }) => {
-  const [activeTab, setActiveTab] = useState<'executive' | 'financial' | 'labor' | 'materials' | 'daily_log'>('executive');
+  const [activeTab, setActiveTab] = useState<'executive' | 'financial' | 'labor' | 'materials' | 'daily_log'>('labor');
   const [completedSuccessToast, setCompletedSuccessToast] = useState(false);
 
   // Filter project-specific materials/expenses
@@ -106,7 +106,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-black text-[#123B5D] tracking-tight">
-              Executive &amp; Site Progress Reports
+              Project Reports &amp; Site Ledgers
             </h1>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#EAF7FA] text-[#123B5D] font-bold border border-[#18A999]/30">
               {currentProject.name}
@@ -124,7 +124,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             </span>
           </div>
           <p className="text-xs text-[#263238]/70 mt-1">
-            Certified Accomplishment Reports, Prorated Labor Costing, and Turnover Documentation.
+            Site labor allocation, materials ledger, and daily site priorities.
           </p>
         </div>
 
@@ -148,25 +148,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <span>Cancel Project</span>
           </button>
 
-          {/* Dedicated Save PDF Button (Direct Download) */}
-          <button
-            onClick={handleDownloadPdf}
-            className="px-4 py-2.5 bg-[#18A999] hover:bg-[#148f81] text-white font-bold text-xs rounded-xl transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
-            title="Directly download clean PDF report file to your device"
-          >
-            <Download className="w-4 h-4" />
-            <span>Save PDF</span>
-          </button>
-
-          {/* Dedicated Print Report Button (Browser Print) */}
-          <button
-            onClick={handlePrint}
-            className="px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-[#123B5D] font-bold text-xs rounded-xl transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
-            title="Open browser print dialog"
-          >
-            <Printer className="w-4 h-4 text-[#18A999]" />
-            <span>Print Report</span>
-          </button>
         </div>
       </div>
 
@@ -193,11 +174,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       {/* Report Navigation Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200 text-xs font-bold">
         {[
-          { id: 'executive', label: 'Executive & Site Progress', icon: TrendingUp },
-          { id: 'financial', label: 'Financial & BOQ Variance', icon: BarChart3 },
           { id: 'labor', label: 'Manpower & Prorated Labor Cost', icon: Users },
           { id: 'materials', label: 'Materials & Delivery Ledger', icon: Package },
-          { id: 'daily_log', label: 'Daily Log & Inspection', icon: FileCheck },
+          { id: 'daily_log', label: 'Daily Site Priority Log', icon: FileCheck },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -218,8 +197,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         })}
       </div>
 
-      {/* KPI Cards Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Project summary metrics appear on Materials and Daily Site Priority reports */}
+      {(activeTab === 'materials' || activeTab === 'daily_log') && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
           <div className="flex items-center justify-between text-[#263238]/70 text-xs font-semibold mb-1">
             <span>Project Contract Sum</span>
@@ -271,8 +250,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             Recorded On-Site Shifts
           </div>
         </div>
-      </div>
+      </div>}
 
+      {/* Legacy executive/financial panels are intentionally not exposed as tabs. */}
       {/* TAB 1: EXECUTIVE & SITE PROGRESS REPORT */}
       {activeTab === 'executive' && (
         <div className="space-y-5 printable-document">
@@ -627,7 +607,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
       )}
 
-      {/* TAB 5: DAILY LOG & INSPECTION */}
+      {/* DAILY SITE PRIORITY LOG */}
       {activeTab === 'daily_log' && (
         <div className="space-y-4 printable-document">
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
@@ -635,10 +615,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <div>
                 <h3 className="text-sm font-black text-[#123B5D] uppercase tracking-wider flex items-center gap-2">
                   <FileCheck className="w-4 h-4 text-[#18A999]" />
-                  Site Daily Log &amp; Supervision Summary
+                  Daily Site Priority Log
                 </h3>
                 <p className="text-xs text-[#263238]/70 mt-0.5">
-                  Inspection records, daily tasks in-charge, and site condition tracking.
+                  Current priorities, assigned crew members, checklist progress, and completion status.
                 </p>
               </div>
               <div className="flex items-center gap-2 print:hidden">
@@ -660,43 +640,43 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             </div>
 
             <div className="space-y-3">
-              {[
-                {
-                  date: '2026-10-25',
-                  weather: 'Clear / Sunny (31°C)',
-                  manpower: '8 Crew On-Site',
-                  activity: 'Rebar tie-ins on second floor beams and continuous concrete cure.',
-                  supervisor: 'Mang Nestor Dela Cruz (Foreman)',
-                },
-                {
-                  date: '2026-10-24',
-                  weather: 'Fair (29°C)',
-                  manpower: '8 Crew On-Site',
-                  activity: 'CHB laying for north elevation and MEP conduit roughing-in.',
-                  supervisor: currentUser?.name || '',
-                },
-                {
-                  date: '2026-10-23',
-                  weather: 'Isolated Showers (28°C)',
-                  manpower: '7 Crew On-Site',
-                  activity: 'Formwork inspection and scaffolding brace installation.',
-                  supervisor: currentUser?.signatureEngineerName || '',
-                },
-              ].map((log, i) => (
-                <div key={i} className="p-4 bg-[#EAF7FA]/40 border border-slate-200 rounded-xl space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-[#123B5D] font-mono">{log.date}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-white border border-slate-200 text-[#18A999] font-bold">
-                      {log.weather}
-                    </span>
-                  </div>
-                  <p className="text-[#263238] font-medium">{log.activity}</p>
-                  <div className="flex items-center justify-between text-[11px] text-[#546e7a] pt-1">
-                    <span>Manpower: <strong>{log.manpower}</strong></span>
-                    <span>Inspector In-Charge: <strong>{log.supervisor}</strong></span>
-                  </div>
+              {priorities.filter((item) => (item.projectId ? item.projectId === currentProject.id : item.siteName === currentProject.name)).length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-xs text-slate-500">
+                  No site priorities have been recorded for this project yet.
                 </div>
-              ))}
+              ) : priorities
+                .filter((item) => (item.projectId ? item.projectId === currentProject.id : item.siteName === currentProject.name))
+                .map((item) => {
+                  const checks = item.checklistItems || [];
+                  const doneChecks = checks.filter((check) => check.completed).length;
+                  const percent = checks.length ? Math.round((doneChecks / checks.length) * 100) : (item.completed ? 100 : 0);
+                  const closed = item.completed || ['done', 'completed', 'closed'].includes(String(item.status || '').toLowerCase());
+                  return (
+                    <div key={item.id} className="p-4 bg-[#EAF7FA]/40 border border-slate-200 rounded-xl space-y-2 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="rounded bg-white border border-slate-200 px-2 py-1 font-bold text-[#123B5D]">{closed ? 'Completed & Closed' : item.status || 'Open'}</span>
+                          <span className="rounded bg-amber-50 border border-amber-200 px-2 py-1 font-bold text-amber-800">{item.priority}</span>
+                          {item.trade && <span className="rounded bg-white border border-slate-200 px-2 py-1 text-slate-600">{item.trade}</span>}
+                        </div>
+                        <span className="text-[10px] text-[#546e7a]">{item.dueDate || item.targetDate || (item.createdAt ? item.createdAt.slice(0,10) : '')}</span>
+                      </div>
+                      <p className="font-bold text-[#123B5D]">{item.title}</p>
+                      {item.description && <p className="text-slate-600">{item.description}</p>}
+                      {checks.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px] text-[#546e7a]"><span>Inspection checks</span><strong>{doneChecks}/{checks.length} ({percent}%)</strong></div>
+                          <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full bg-[#18A999]" style={{ width: `${percent}%` }} /></div>
+                          <ul className="list-disc pl-5 text-slate-600">{checks.map((check) => <li key={check.id} className={check.completed ? 'line-through' : ''}>{check.text}</li>)}</ul>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-2 text-[11px] text-[#546e7a]">
+                        <span>{item.assignedTo || 'Unassigned'}</span>
+                        <span>Status: <strong className={closed ? 'text-emerald-700' : 'text-amber-700'}>{closed ? 'Done' : item.status || 'Pending'}</strong></span>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         </div>
