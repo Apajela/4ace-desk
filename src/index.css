@@ -136,3 +136,16 @@ html.high-contrast :focus-visible { outline: 3px solid #ff0 !important; outline-
 html.high-contrast .bg-white { background-color: #050505 !important; color: #fff !important; }
 html.high-contrast .text-slate-500, html.high-contrast .text-slate-600, html.high-contrast .text-\[\#263238\] { color: #fff !important; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+
+/* Consistent, responsive action placement across modules */
+@layer components {
+  button, [role="button"] { -webkit-tap-highlight-color: transparent; }
+  button:focus-visible, [role="button"]:focus-visible {
+    outline: 3px solid rgba(24, 169, 153, .45);
+    outline-offset: 2px;
+  }
+  @media (max-width: 640px) {
+    button { max-width: 100%; }
+    table { font-variant-numeric: tabular-nums; }
+  }
+}

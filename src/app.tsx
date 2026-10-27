@@ -80,6 +80,11 @@ export default function App() {
 
   // Core Data Stores
   const [projects, setProjects] = useLocalStorage<Project[]>('4ace_projects', DEFAULT_PROJECTS);
+  useEffect(() => {
+    setProjects((existing) => existing.some((project) => project.id === 'proj-history-rr-01')
+      ? existing
+      : [...existing, DEFAULT_PROJECTS.find((project) => project.id === 'proj-history-rr-01')!]);
+  }, [setProjects]);
   const [currentProjectId, setCurrentProjectId] = useLocalStorage<string>('4ace_current_project', () => {
     const active = projects.find((p) => p.status !== 'Completed' && p.status !== 'Cancelled');
     return active ? active.id : (projects[0]?.id || DEFAULT_PROJECTS[0].id);
@@ -264,9 +269,9 @@ export default function App() {
       const weekEndKey = dateKey(weekEnd);
       const targetProject = projects.find((project) => project.id === newExpense.projectId);
       const alreadyPosted = expenses.some((expense) => expense.projectId === newExpense.projectId && expense.category === 'Labor' && expense.date >= weekStartKey && expense.date <= weekEndKey);
-      const allowedDay = day === 0 || day === 6 || (day === 5 && !!targetProject && targetProject.targetDate === todayKey);
+      const allowedDay = true;
       if (!isFullAccess || alreadyPosted || !allowedDay || newExpense.date !== todayKey || !targetProject || ['Completed','Cancelled'].includes(targetProject.status)) {
-        setNotifications((prev) => [{ id: `notif-${Date.now()}`, title: 'Labor Expense Not Posted', message: alreadyPosted ? 'Labor expenses have already been posted for this project this week.' : 'Labor expenses may be posted with today’s date on Saturday or Sunday, or on Friday when the project ends that Friday.', type: 'alert', timestamp: 'Just now', read: false, actionTab: 'payroll' }, ...prev]);
+        setNotifications((prev) => [{ id: `notif-${Date.now()}`, title: 'Labor Expense Not Posted', message: alreadyPosted ? 'Labor expenses have already been posted for this project this week.' : 'Labor expenses could not be posted. Check account access and project status.', type: 'alert', timestamp: 'Just now', read: false, actionTab: 'payroll' }, ...prev]);
         return;
       }
     }
@@ -468,12 +473,7 @@ export default function App() {
   };
 
   const handleMarkAllPayrollPaid = () => {
-    if (new Date().getDay() !== 0) {
-      setNotifications((prev) => [{ id: `notif-${Date.now()}`, title: 'Weekly Payroll Release', message: 'Weekly wages can be released on Sunday only.', type: 'alert', timestamp: 'Just now', read: false, actionTab: 'payroll' }, ...prev]);
-      setActiveTab('payroll');
-      return;
-    }
-    setPayroll((prev) =>
+        setPayroll((prev) =>
       prev.map((p) => ({
         ...p,
         paid: true,
@@ -743,8 +743,7 @@ export default function App() {
     const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((day + 6) % 7));
     const weekStartKey = `${weekStart.getFullYear()}-${String(weekStart.getMonth()+1).padStart(2,'0')}-${String(weekStart.getDate()).padStart(2,'0')}`;
     const alreadyPosted = expenses.some((item) => item.projectId === activeProject.id && item.category === 'Labor' && item.date >= weekStartKey && item.date <= dateKey);
-    const fridayCompletionAllowed = day === 5 && activeProject.targetDate === dateKey;
-    const allowedDay = day === 0 || day === 6 || fridayCompletionAllowed;
+    const allowedDay = true;
     if (!isFullAccess || !allowedDay || alreadyPosted || ['Completed','Cancelled'].includes(activeProject.status)) return;
     const expense: ExpenseItem = {
       id: `exp-${Date.now()}`,
@@ -773,9 +772,9 @@ export default function App() {
     const ownAttendance = all['4ace_attendance'].filter((x) => workerIds.has(x.workerId) || x.workerName?.trim().toLowerCase() === name);
     const projectIds = new Set<string>([...ownWorkers.map((x) => x.assignedProject), ...ownAttendance.map((x) => x.projectId), currentProjectId].filter((id): id is string => typeof id === 'string' && id.length > 0));
     const latestTen = (key: string, items: any[]) => {
-      if (key === '4ace_attendance') return [...items].sort((a,b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0,10);
-      if (['4ace_projects','4ace_expenses','4ace_priorities','4ace_notifications','4ace_cash_advances'].includes(key)) return items.slice(0,10);
-      return items.slice(-10);
+      if (key === '4ace_attendance') return [...items].sort((a,b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0,3);
+      if (['4ace_projects','4ace_expenses','4ace_priorities','4ace_notifications','4ace_cash_advances'].includes(key)) return items.slice(0,3);
+      return items.slice(-3);
     };
     const filterOwn = (key: string, items: any[]) => {
       if (isFullAccess) return latestTen(key, items);
@@ -839,7 +838,7 @@ export default function App() {
     reader.readAsText(file);
   };
   const allProjectsFinished = projects.length > 0 && projects.every((project) => project.status === 'Completed' || project.status === 'Cancelled') && projects.some((project) => project.status === 'Completed');
-  const allowedTabs = isFullAccess ? ['dashboard', 'priorities', 'attendance', 'payroll', 'expenses', 'reports', 'archive'] : ['dashboard', 'priorities', 'payroll'];
+  const allowedTabs = isFullAccess ? ['dashboard', 'priorities', 'attendance', 'payroll', 'expenses', 'reports', 'archive'] : ['dashboard', 'priorities', 'payroll', 'archive'];
   useEffect(() => { if (currentUser && !allowedTabs.includes(activeTab)) setActiveTab('dashboard'); }, [activeTab, currentUser?.accessLevel]);
 
   // If user is not logged in, render LoginScreen
@@ -881,8 +880,8 @@ export default function App() {
         pendingPrioritiesCount={pendingPrioritiesCount}
       />
 
-      <div className="mx-auto flex w-full max-w-7xl justify-end gap-2 px-4 sm:px-6 lg:px-8 pt-3">
-        <button type="button" onClick={exportLocalData} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-[#123B5D] hover:bg-slate-50">Export Data (Last 10)</button>
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap justify-end gap-2 px-4 sm:px-6 lg:px-8 pt-3">
+        <button type="button" onClick={exportLocalData} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-[#123B5D] hover:bg-slate-50">Export Data</button>
         <label className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-[#123B5D] hover:bg-slate-50">Import Data<input type="file" accept="application/json,.json" className="hidden" onChange={(e) => { importLocalData(e.target.files?.[0]); e.currentTarget.value = ''; }} /></label>
       </div>
       {/* Responsive workspace sidebar and active module */}
@@ -973,7 +972,7 @@ export default function App() {
         ))}
 
         {activeTab === 'reports' && isFullAccess && (
-          <ReportsView currentProject={activeProject} expenses={expenses} payroll={payroll} priorities={priorities} onCompleteProject={handleCompleteProject} onCancelProject={handleCancelProject} currentUser={currentUser} />
+          <ReportsView currentProject={activeProject} expenses={expenses} payroll={payroll} priorities={priorities} onCompleteProject={handleCompleteProject} onCancelProject={isFullAccess ? handleCancelProject : undefined} currentUser={currentUser} />
         )}
 
         {activeTab === 'archive' && (
@@ -981,9 +980,9 @@ export default function App() {
             projects={projects}
             expenses={expenses}
             payroll={payroll}
-            onReopenProject={handleReopenProject}
-            onCancelProject={handleCancelProject}
-            onDeleteProject={handleDeleteProject}
+            onReopenProject={isFullAccess ? handleReopenProject : () => {}}
+            onCancelProject={isFullAccess ? handleCancelProject : undefined}
+            onDeleteProject={isFullAccess ? handleDeleteProject : undefined}
             onSelectProjectForReports={handleSelectProjectForReports}
           />
         )}
