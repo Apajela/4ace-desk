@@ -42,33 +42,21 @@ export function calculateProjectLaborAllocation(
   cutoffEndDate: string,   // YYYY-MM-DD
   project: Project
 ): CutoffProjectLaborSummary {
-  const pStart = new Date(project.startDate);
-  const cStart = new Date(cutoffStartDate);
-  const cEnd = new Date(cutoffEndDate);
-
-  // Fallbacks for invalid dates
-  const pStartTime = isNaN(pStart.getTime()) ? 0 : pStart.getTime();
-  const cStartTime = isNaN(cStart.getTime()) ? 0 : cStart.getTime();
-  const cEndTime = isNaN(cEnd.getTime()) ? 0 : cEnd.getTime();
-
-  let maxChargeableWindowDays = 7;
-  let isProrated = false;
-
-  if (pStartTime > cEndTime) {
-    // Project hasn't started yet in this cutoff
-    maxChargeableWindowDays = 0;
-    isProrated = true;
-  } else if (pStartTime <= cStartTime) {
-    // Project was active throughout entire cutoff
-    maxChargeableWindowDays = 7;
-    isProrated = false;
-  } else {
-    // Project started within this cutoff window
-    // e.g. Oct 25 - Oct 22 = 3 days
-    const diffDays = Math.round((cEndTime - pStartTime) / (1000 * 60 * 60 * 24));
-    maxChargeableWindowDays = Math.max(0, diffDays);
-    isProrated = true;
+  const toLocalDate = (value: string) => new Date(`${value}T12:00:00`);
+  const pStart = toLocalDate(project.startDate);
+  const cStart = toLocalDate(cutoffStartDate);
+  const cEnd = toLocalDate(cutoffEndDate);
+  const pEnd = project.endDate ? toLocalDate(project.endDate) : (project.status === 'Completed' ? toLocalDate(project.targetDate) : cEnd);
+  const valid = (date: Date) => !Number.isNaN(date.getTime());
+  const effectiveStart = valid(pStart) && pStart > cStart ? pStart : cStart;
+  const effectiveEnd = valid(pEnd) && pEnd < cEnd ? pEnd : cEnd;
+  let maxChargeableWindowDays = 0;
+  if (valid(effectiveStart) && valid(effectiveEnd) && effectiveStart <= effectiveEnd) {
+    for (const cursor = new Date(effectiveStart); cursor <= effectiveEnd; cursor.setDate(cursor.getDate() + 1)) {
+      if (cursor.getDay() !== 0) maxChargeableWindowDays += 1; // Sunday is the weekly rest day.
+    }
   }
+  const isProrated = effectiveStart.getTime() !== cStart.getTime() || effectiveEnd.getTime() !== cEnd.getTime();
 
   let totalChargeableLaborExpense = 0;
   let totalFullCutoffLabor = 0;

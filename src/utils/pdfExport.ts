@@ -310,13 +310,12 @@ export const exportPayrollMasterPdf = (
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
-  doc.text(company.companyName.toUpperCase(), 14, 9);
+  doc.text('4ACE DESK CONSTRUCTION', 14, 9);
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(`WEEKLY PAYROLL MASTER REGISTRY — CUTOFF: ${cutoffPeriod}`, 14, 15);
-
-  doc.text(`Project Site: ${project.name} (${project.code})`, 283, 15, { align: 'right' });
+  doc.text('PCAB License #84920-AAA | General Engineering & Building Contractor', 14, 14);
+  doc.text(`WEEKLY PAYROLL MASTER REGISTRY — CUTOFF: ${cutoffPeriod}`, 14, 18);
 
   // Payroll Table
   const tableData = payroll.map((p, idx) => {
