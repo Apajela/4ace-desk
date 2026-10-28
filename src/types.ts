@@ -65,6 +65,7 @@ export interface Worker {
   assignedProject?: string;
   username?: string;
   password?: string;
+  linkedUserId?: string;
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'overtime';
@@ -109,6 +110,8 @@ export interface CashAdvance {
   date: string;
   reason: string;
   deducted: boolean;
+  deductionPerPayroll?: number;
+  remainingBalance?: number;
 }
 
 export type ExpenseCategory =

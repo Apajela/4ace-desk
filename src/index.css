@@ -149,3 +149,42 @@ html.high-contrast .text-slate-500, html.high-contrast .text-slate-600, html.hig
     table { font-variant-numeric: tabular-nums; }
   }
 }
+
+/* App-wide dark mode: keep navigation and branded panels intact while fixing light surfaces and text contrast. */
+html.dark-mode body { background-color: #0b1220; color: #e2e8f0; }
+html.dark-mode main { color: #e2e8f0; }
+html.dark-mode .bg-white { background-color: #111c2d !important; color: #e2e8f0 !important; }
+html.dark-mode .bg-slate-50 { background-color: #172337 !important; }
+html.dark-mode .bg-slate-100 { background-color: #1e293b !important; }
+html.dark-mode .text-slate-800, html.dark-mode .text-slate-700, html.dark-mode .text-slate-600, html.dark-mode .text-slate-500, html.dark-mode .text-\[\#263238\], html.dark-mode .text-\[\#123B5D\] { color: #e2e8f0 !important; }
+html.dark-mode .border-slate-100, html.dark-mode .border-slate-200, html.dark-mode .border-slate-300 { border-color: #334155 !important; }
+html.dark-mode input, html.dark-mode textarea, html.dark-mode select { background-color: #172337 !important; color: #f1f5f9 !important; border-color: #475569 !important; }
+html.dark-mode table thead, html.dark-mode .bg-\[\#EAF7FA\] { background-color: #1e344b !important; }
+html.dark-mode .hover\:bg-slate-50:hover, html.dark-mode .hover\:bg-\[\#EAF7FA\]\/40:hover { background-color: #1e293b !important; }
+html.dark-mode .shadow-sm, html.dark-mode .shadow-md { --tw-shadow-color: rgb(0 0 0 / 35%); }
+html.dark-mode .bg-emerald-50 { background-color: #12372f !important; }
+html.dark-mode .bg-amber-50 { background-color: #3b2e16 !important; }
+html.dark-mode .bg-rose-50 { background-color: #3a1e29 !important; }
+
+
+/* Additional contrast fixes for hard-coded brand colors used across feature pages. */
+html.dark-mode .bg-\[\#EAF7FA\],
+html.dark-mode .bg-\[\#EAF7FA\]\/40 { background-color: #1e344b !important; }
+html.dark-mode .bg-\[\#F8FBFC\],
+html.dark-mode .bg-\[\#f8fbfc\] { background-color: #111c2d !important; }
+html.dark-mode .text-\[\#546e7a\],
+html.dark-mode .text-\[\#263238\]\/70,
+html.dark-mode .text-\[\#263238\]\/60,
+html.dark-mode .text-\[\#263238\]\/50 { color: #b8c7d9 !important; }
+html.dark-mode .border-\[\#cbeaf0\],
+html.dark-mode .border-\[\#bce6ed\],
+html.dark-mode .border-\[\#18A999\]\/30 { border-color: #36546b !important; }
+html.dark-mode .bg-teal-50 { background-color: #12372f !important; color: #d1fae5 !important; }
+html.dark-mode .bg-sky-50 { background-color: #102d43 !important; }
+html.dark-mode .bg-indigo-50 { background-color: #25254a !important; }
+html.dark-mode .bg-purple-50 { background-color: #302342 !important; }
+html.dark-mode .text-amber-800, html.dark-mode .text-rose-700,
+html.dark-mode .text-rose-800, html.dark-mode .text-emerald-800 { color: #f1f5f9 !important; }
+html.dark-mode .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #334155 !important; }
+html.dark-mode .placeholder-slate-400::placeholder { color: #94a3b8 !important; }
+html.dark-mode .bg-white .bg-white { background-color: #172337 !important; }

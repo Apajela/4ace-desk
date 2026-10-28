@@ -70,6 +70,7 @@ export default function App() {
   const [users, setUsers] = useState<UserProfileType[]>(() =>
     getInitialData('4ace_users', DEFAULT_USERS)
   );
+  const [showAccountManager, setShowAccountManager] = useState(false);
   useEffect(() => { setUsers((previous) => previous.map((user) => ({ ...user, accessLevel: user.id === 'user-1' || user.id === 'user-2' ? 'Full Access (Admin)' : 'Field Engineer' }))); }, []);
   const [company, setCompany] = useState<CompanySettings>(() =>
     getInitialData('4ace_company', DEFAULT_COMPANY)
@@ -80,11 +81,6 @@ export default function App() {
 
   // Core Data Stores
   const [projects, setProjects] = useLocalStorage<Project[]>('4ace_projects', DEFAULT_PROJECTS);
-  useEffect(() => {
-    setProjects((existing) => existing.some((project) => project.id === 'proj-history-rr-01')
-      ? existing
-      : [...existing, DEFAULT_PROJECTS.find((project) => project.id === 'proj-history-rr-01')!]);
-  }, [setProjects]);
   const [currentProjectId, setCurrentProjectId] = useLocalStorage<string>('4ace_current_project', () => {
     const active = projects.find((p) => p.status !== 'Completed' && p.status !== 'Cancelled');
     return active ? active.id : (projects[0]?.id || DEFAULT_PROJECTS[0].id);
@@ -113,6 +109,7 @@ export default function App() {
   const [showNotification, setShowNotification] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
 
   // Sync to LocalStorage on updates
 
@@ -156,9 +153,11 @@ export default function App() {
 
 
 
+  const hasActiveProject = projects.some((p) => p.status !== 'Completed' && p.status !== 'Cancelled');
   const activeProject =
-    projects.find((p) => p.id === currentProjectId) ||
+    projects.find((p) => p.id === currentProjectId && p.status !== 'Completed' && p.status !== 'Cancelled') ||
     projects.find((p) => p.status !== 'Completed' && p.status !== 'Cancelled') ||
+    projects.find((p) => p.id === currentProjectId) ||
     projects[0] ||
     DEFAULT_PROJECTS[0];
 
@@ -360,23 +359,14 @@ export default function App() {
     setNotifications((prev) => [notif, ...prev]);
   };
 
-  // A project may only be completed after its labor for the current Monday–Sunday week is posted.
-  const handleCompleteProject = (projId: string) => {
+  // Project completion must not be blocked by an unposted payroll expense.
+  // Payroll can still be marked Paid later; its labor expense is recorded automatically.
+  const handleCompleteProject = (projId: string): boolean => {
+    if (!confirmPassword('mark this project as completed')) return false;
     const target = projects.find((p) => p.id === projId);
     const today = new Date();
     const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-    const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
-    const weekStartKey = `${weekStart.getFullYear()}-${String(weekStart.getMonth()+1).padStart(2,'0')}-${String(weekStart.getDate()).padStart(2,'0')}`;
-    const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
-    const weekEndKey = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth()+1).padStart(2,'0')}-${String(weekEnd.getDate()).padStart(2,'0')}`;
-    const hasLaborExpense = expenses.some((expense) => expense.projectId === projId && expense.category === 'Labor' && expense.date >= weekStartKey && expense.date <= weekEndKey);
-    if (target && target.status !== 'Completed' && !hasLaborExpense) {
-      setNotifications((prev) => [{ id: `notif-${Date.now()}`, title: 'Post Labor Expenses First', message: `Post the final weekly labor expenses for ${target.name} before marking it completed.`, type: 'alert', timestamp: 'Just now', read: false, actionTab: 'payroll' }, ...prev]);
-      setCurrentProjectId(projId);
-      setActiveTab('payroll');
-      return;
-    }
-    if (!target || ['Completed','Cancelled'].includes(target.status)) return;
+    if (!target || ['Completed','Cancelled'].includes(target.status)) return false;
     setProjects((prev) =>
       prev.map((p) => (p.id === projId ? { ...p, status: 'Completed', endDate: todayKey } : p))
     );
@@ -399,9 +389,11 @@ export default function App() {
       actionTab: 'archive',
     };
     setNotifications((prev) => [notif, ...prev]);
+    return true;
   };
 
   const handleDeleteProject = (projId: string) => {
+    if (!confirmPassword('permanently delete this project')) return;
     setProjects((prev) => prev.filter((project) => project.id !== projId));
     setExpenses((prev) => prev.filter((expense) => expense.projectId !== projId));
     setPriorities((prev) => prev.filter((priority) => priority.projectId !== projId));
@@ -410,12 +402,13 @@ export default function App() {
     setPayroll((prev) => prev.filter((entry) => !workers.some((worker) => worker.id === entry.workerId && worker.assignedProject === projId)));
     if (currentProjectId === projId) {
       const next = projects.find((project) => project.id !== projId && project.status !== 'Completed' && project.status !== 'Cancelled');
-      if (next) setCurrentProjectId(next.id);
+      setCurrentProjectId(next?.id || '');
     }
   };
 
   // Cancel Project Handler
   const handleCancelProject = (projId: string) => {
+    if (!confirmPassword('cancel this project')) return;
     const target = projects.find((p) => p.id === projId);
     setProjects((prev) =>
       prev.map((p) => (p.id === projId ? { ...p, status: 'Cancelled' } : p))
@@ -442,6 +435,7 @@ export default function App() {
 
   // Reopen Project Handler
   const handleReopenProject = (projId: string) => {
+    if (!confirmPassword('reopen this project')) return;
     const target = projects.find((p) => p.id === projId);
     setProjects((prev) =>
       prev.map((p) => (p.id === projId ? { ...p, status: 'In Progress' } : p))
@@ -468,17 +462,44 @@ export default function App() {
   };
 
   // Payroll Handlers
-  const handleUpdatePayrollEntry = (updated: PayrollEntry) => {
+  const handleUpdatePayrollEntry = (updated: PayrollEntry, laborExpense?: { amount: number; projectId: string; projectName: string; cutoffStartDate: string; cutoffEndDate: string; workerId: string; workerName: string; date: string }) => {
     setPayroll((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    if (updated.paid && laborExpense && laborExpense.amount > 0) {
+      const marker = `Payroll auto-charge ${laborExpense.workerId} ${laborExpense.cutoffStartDate} to ${laborExpense.cutoffEndDate}`;
+      const alreadyRecorded = expenses.some((item) => item.projectId === laborExpense.projectId && item.category === 'Labor' && item.description?.includes(marker));
+      if (!alreadyRecorded) {
+        const project = projects.find((item) => item.id === laborExpense.projectId);
+        const entry: ExpenseItem = {
+          id: `exp-payroll-${laborExpense.workerId}-${laborExpense.cutoffStartDate}-${Date.now()}`,
+          projectId: laborExpense.projectId,
+          projectName: laborExpense.projectName,
+          category: 'Labor',
+          amount: laborExpense.amount,
+          date: laborExpense.date,
+          vendor: laborExpense.workerName,
+          supplier: 'Weekly Payroll',
+          description: `${marker} | ${laborExpense.workerName} | cutoff ${laborExpense.cutoffStartDate} to ${laborExpense.cutoffEndDate}`,
+          paymentStatus: 'Paid',
+          status: 'Paid',
+        };
+        setExpenses((previous) => [entry, ...previous]);
+        if (project) setProjects((previous) => previous.map((item) => item.id === project.id ? { ...item, spent: (item.spent || 0) + laborExpense.amount } : item));
+      }
+    }
   };
 
-  const handleMarkAllPayrollPaid = () => {
-        setPayroll((prev) =>
-      prev.map((p) => ({
-        ...p,
-        paid: true,
-        datePaid: new Date().toISOString().split('T')[0],
-      }))
+  const handleMarkAllPayrollPaid = (entries: PayrollEntry[] = []) => {
+    const entryIds = new Set(entries.map((entry) => entry.id));
+    const paidWorkerIds = new Set(entries.filter((entry) => !entry.paid).map((entry) => entry.workerId));
+    setCashAdvances((previous) => previous.map((advance) => {
+      if (advance.deducted || advance.projectId !== activeProject.id || !paidWorkerIds.has(advance.workerId)) return advance;
+      const balance = advance.remainingBalance ?? advance.amount;
+      const installment = advance.deductionPerPayroll ?? 500;
+      const remainingBalance = Math.max(0, balance - Math.min(balance, installment));
+      return { ...advance, remainingBalance, deducted: remainingBalance <= 0 };
+    }));
+    setPayroll((prev) =>
+      prev.map((p) => entryIds.has(p.id) ? { ...p, paid: true, datePaid: new Date().toISOString().split('T')[0] } : p)
     );
     const notif: NotificationItem = {
       id: `notif-${Date.now()}`,
@@ -536,11 +557,11 @@ export default function App() {
     setPayroll((previousPayroll) => previousPayroll.map((entry) => {
       const weekRecords = nextAttendance.filter((item) => item.workerId === entry.workerId && item.date >= mondayKey && item.date <= sundayKey);
       if (weekRecords.length === 0) return entry;
-      const daysWorked = Math.min(6, weekRecords.reduce((total, item) => {
-        const state = String(item.status).toLowerCase();
-        return total + (state === 'absent' ? 0 : state === 'half_day' || state === 'half day' ? 0.5 : 1);
-      }, 0));
-      const otHours = weekRecords.reduce((total, item) => total + (Number(item.otHours ?? item.overtimeHours) || 0), 0);
+      const uniqueDates = new Map<string, typeof weekRecords>();
+      weekRecords.forEach((item) => uniqueDates.set(item.date, [...(uniqueDates.get(item.date) || []), item]));
+      const dailyGroups = [...uniqueDates.values()];
+      const daysWorked = Math.min(6, dailyGroups.reduce((total, dayRecords) => total + Math.max(...dayRecords.map((item) => { const state = String(item.status).toLowerCase(); return state === 'absent' ? 0 : state === 'half_day' || state === 'half day' ? 0.5 : 1; })), 0));
+      const otHours = dailyGroups.reduce((total, dayRecords) => total + Math.max(0, ...dayRecords.map((item) => Number(item.otHours ?? item.overtimeHours) || 0)), 0);
       const regularPay = daysWorked * entry.dailyRate;
       const otPay = (entry.dailyRate / 8) * 1.25 * otHours;
       const grossPay = regularPay + otPay;
@@ -579,15 +600,15 @@ export default function App() {
       workerName: worker.name,
       role: worker.role,
       dailyRate: worker.dailyRate,
-      daysWorked: 6,
+      daysWorked: 0,
       otHours: 0,
       overtimeHours: 0,
-      regularPay: worker.dailyRate * 6,
+      regularPay: 0,
       otPay: 0,
-      grossPay: worker.dailyRate * 6,
+      grossPay: 0,
       cashAdvance: 0,
-      totalDeductions: 150,
-      netPay: Math.max(0, worker.dailyRate * 6 - 150),
+      totalDeductions: 0,
+      netPay: 0,
       paid: false,
     };
     setPayroll((prev) => [...prev, newPayrollEntry]);
@@ -688,6 +709,8 @@ export default function App() {
 
   const handleCreateUser = (newUser: UserProfileType) => {
     setUsers((prev) => [...prev, newUser]);
+    // A regular account is made available to Full Access for linking in Add Crew Member.
+    // It is not automatically treated as a paid worker until the admin links/registers it.
     setCurrentUser(newUser);
   };
 
@@ -735,33 +758,55 @@ export default function App() {
     );
   };
 
-  // Enforce labor posting rules in the data handler too (not just by disabling the UI).
-  const handlePostLaborExpense = (amount: number, description: string) => {
+  // Post one consolidated labor expense per project and payroll cutoff.
+  // Return success only after the expense has been accepted and queued for persistence.
+  const handlePostLaborExpense = (amount: number, description: string): boolean => {
     const now = new Date();
     const dateKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-    const day = now.getDay();
-    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((day + 6) % 7));
-    const weekStartKey = `${weekStart.getFullYear()}-${String(weekStart.getMonth()+1).padStart(2,'0')}-${String(weekStart.getDate()).padStart(2,'0')}`;
-    const alreadyPosted = expenses.some((item) => item.projectId === activeProject.id && item.category === 'Labor' && item.date >= weekStartKey && item.date <= dateKey);
-    const allowedDay = true;
-    if (!isFullAccess || !allowedDay || alreadyPosted || ['Completed','Cancelled'].includes(activeProject.status)) return;
+    const normalizedDescription = String(description || '').toLowerCase();
+    const cutoffMatch = normalizedDescription.match(/cutoff\s+(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})/);
+    const targetProject = projects.find((project) => project.id === activeProject.id);
+    const alreadyPosted = expenses.some((item) => {
+      if (item.projectId !== activeProject.id || item.category !== 'Labor') return false;
+      const existingDescription = (item.description || '').toLowerCase();
+      if (cutoffMatch) return existingDescription.includes(`cutoff ${cutoffMatch[1]} to ${cutoffMatch[2]}`);
+      return existingDescription === normalizedDescription;
+    });
+    const safeAmount = Math.round((Number(amount) || 0) * 100) / 100;
+    if (!isFullAccess || safeAmount <= 0 || alreadyPosted || !targetProject || ['Completed','Cancelled'].includes(targetProject.status)) {
+      setNotifications((prev) => [{ id: `notif-${Date.now()}`, title: 'Labor Expense Not Posted', message: alreadyPosted ? 'Payroll labor expense has already been posted for this project and cutoff.' : safeAmount <= 0 ? 'Payroll labor expense is ₱0.00 and was not posted. Check DTR and project assignment.' : 'Labor expense could not be posted. Check account access and project status.', type: 'alert', timestamp: 'Just now', read: false, actionTab: 'payroll' }, ...prev]);
+      return false;
+    }
     const expense: ExpenseItem = {
-      id: `exp-${Date.now()}`,
+      id: `exp-payroll-cutoff-${activeProject.id}-${cutoffMatch?.[1] || dateKey}-${Date.now()}`,
       projectId: activeProject.id,
       projectName: activeProject.name,
       category: 'Labor',
-      amount: Math.max(0, Number(amount) || 0),
+      amount: safeAmount,
       date: dateKey,
       vendor: 'Site Field Crew & Subcontractors',
-      supplier: 'Weekly Field Labor Payroll',
+      supplier: 'Weekly Payroll',
       description,
       paymentStatus: 'Paid',
       status: 'Paid',
     };
-    handleAddExpense(expense);
+    setExpenses((prev) => [expense, ...prev]);
+    setProjects((prev) => prev.map((project) => project.id === activeProject.id ? { ...project, spent: (project.spent || 0) + safeAmount } : project));
+    setNotifications((prev) => [{ id: `notif-${Date.now()}`, title: 'Payroll Expense Posted', message: `₱${safeAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} labor expense posted for ${activeProject.name}.`, type: 'payroll', timestamp: 'Just now', read: false, actionTab: 'expenses' }, ...prev]);
+    return true;
   };
 
   const isFullAccess = !!currentUser && currentUser.accessLevel === 'Full Access (Admin)';
+  const confirmPassword = (action: string) => {
+    if (!currentUser) return false;
+    const account = users.find((user) => user.id === currentUser.id || user.username.toLowerCase() === currentUser.username.toLowerCase());
+    const expectedPassword = account?.password || currentUser.password;
+    if (!expectedPassword) { window.alert('Walang naka-save na password para sa account na ito. Hindi matutuloy ang action.'); return false; }
+    const entered = window.prompt(`Ilagay ang iyong password para ${action}.`);
+    if (entered === null) return false;
+    if (entered !== expectedPassword) { window.alert('Maling password. Walang binagong data.'); return false; }
+    return true;
+  };
   const exportLocalData = () => {
     const keys = ['4ace_projects','4ace_workers','4ace_attendance','4ace_cash_advances','4ace_priorities','4ace_payroll','4ace_expenses','4ace_notifications'];
     const name = currentUser?.name?.trim().toLowerCase() || '';
@@ -790,6 +835,7 @@ export default function App() {
     keys.forEach((key) => { data[key] = filterOwn(key, all[key]); });
     const exportSummary = keys.map((key) => `${key.replace('4ace_', '')}: ${(data[key] as unknown[]).length}`).join('\n');
     const totalExported = keys.reduce((sum, key) => sum + (data[key] as unknown[]).length, 0);
+    if (!confirmPassword('export a backup of your data')) return;
     if (!window.confirm(`Export backup data?\nMaximum: 8 entries per category (up to 64 total across 8 categories).\n\n${exportSummary}\n\nTotal entries to export: ${totalExported}`)) return;
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `4ace-desk-backup-${new Date().toISOString().slice(0,10)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -813,7 +859,7 @@ export default function App() {
         const allowedProjects = new Set<string>([...existingProjects.filter((x) => x.supervisor?.trim().toLowerCase() === name || ownWorkers.some((w) => w.assignedProject === x.id)).map((x) => x.id), ...backupWorkers.map((x:any) => x.assignedProject), ...backupAttendance.map((x:any) => x.projectId), currentProjectId].filter((id): id is string => typeof id === 'string' && id.length > 0));
         keys.forEach((key) => {
           if (!Array.isArray(data[key])) return;
-          const incoming = data[key].slice(-10);
+          const incoming = data[key].slice(-8);
           let safeIncoming = incoming;
           if (!isFullAccess) {
             if (key === '4ace_projects') safeIncoming = incoming.filter((x:any) => x.supervisor?.trim().toLowerCase() === name || allowedProjects.has(x.id));
@@ -857,9 +903,9 @@ export default function App() {
     );
   }
 
-  const pendingPrioritiesCount = priorities.filter(
+  const pendingPrioritiesCount = hasActiveProject ? priorities.filter(
     (p) => (!p.projectId || p.projectId === activeProject.id) && !p.completed
-  ).length;
+  ).length : 0;
 
   return (
     <div className="min-h-screen bg-white text-[#263238] flex flex-col font-sans antialiased selection:bg-[#18A999] selection:text-white">
@@ -878,16 +924,28 @@ export default function App() {
         notifications={notifications}
         onOpenNotifications={() => setShowNotification(true)}
         onOpenProfileModal={() => setShowProfile(true)}
+        onOpenNewProject={() => setShowEditProjectModal(true)}
+        isFullAccess={isFullAccess}
+        onOpenManageAccounts={() => setShowAccountManager(true)}
+        onExportData={exportLocalData}
+        onImportData={importLocalData}
         onOpenReceiptScanner={() => setShowScanner(true)}
-        onOpenNewProject={() => setShowProjectModal(true)}
         onLogout={() => { setCurrentUser(null); try { localStorage.removeItem('4ace_current_user'); } catch {} }}
         pendingPrioritiesCount={pendingPrioritiesCount}
       />
 
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap justify-end gap-2 px-4 sm:px-6 lg:px-8 pt-3">
-        <button type="button" onClick={exportLocalData} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-[#123B5D] hover:bg-slate-50">Export Data</button>
-        <label className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-[#123B5D] hover:bg-slate-50">Import Data<input type="file" accept="application/json,.json" className="hidden" onChange={(e) => { importLocalData(e.target.files?.[0]); e.currentTarget.value = ''; }} /></label>
-      </div>
+      {isFullAccess && showAccountManager && <div className="fixed inset-0 z-[100] bg-slate-950/60 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Manage User Accounts">
+        <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+          <div className="flex items-center justify-between gap-3 p-5 border-b border-slate-200"><div><h2 className="text-lg font-black text-[#123B5D]">Manage User Accounts</h2><p className="text-xs text-slate-500 mt-1">Only Full Access can delete created login accounts.</p></div><button onClick={() => setShowAccountManager(false)} className="rounded-lg px-3 py-2 border border-slate-200 font-bold">Close</button></div>
+          <div className="p-5 space-y-3">{users.map((user) => {
+            const isCurrent = user.id === currentUser.id;
+            const fullAccessCount = users.filter((u) => u.accessLevel === 'Full Access (Admin)').length;
+            const protectedAccount = isCurrent || (user.accessLevel === 'Full Access (Admin)' && fullAccessCount <= 1);
+            return <div key={user.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><div className="font-bold text-[#123B5D]">{user.name}</div><div className="text-xs text-slate-500">@{user.username} · {user.accessLevel}</div></div><button disabled={protectedAccount} title={isCurrent ? 'You cannot delete the account currently in use.' : protectedAccount ? 'At least one Full Access account must remain.' : 'Delete this account'} onClick={() => { if (!confirmPassword(`delete the login account for ${user.name}`)) return; if (!window.confirm(`Delete the login account for ${user.name} (@${user.username})? This cannot be undone.`)) return; setUsers((previous) => previous.filter((u) => u.id !== user.id)); }} className="rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">Delete Account</button></div>;
+          })}</div>
+        </div>
+      </div>}
+
       {/* Responsive workspace sidebar and active module */}
       <div className="flex-1 max-w-7xl mx-auto w-full flex flex-col md:flex-row gap-5 px-4 sm:px-6 lg:px-8 py-6">
         <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
@@ -914,7 +972,8 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'priorities' && (
+        {activeTab === 'priorities' && !hasActiveProject && <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center"><h2 className="text-lg font-black text-[#123B5D]">No Active Project</h2><p className="mt-2 text-sm text-slate-500">There are no active sites. Add or reopen a site before creating today's priorities.</p></div>}
+        {activeTab === 'priorities' && hasActiveProject && (
           <PrioritiesView
             currentProject={activeProject}
             priorities={priorities}
@@ -930,6 +989,7 @@ export default function App() {
           <AttendanceRecord
             projectName={activeProject.name}
             workers={workers}
+            users={users}
             projects={projects}
             records={attendance}
             onSaveAttendance={handleSaveAttendance}
@@ -975,8 +1035,9 @@ export default function App() {
           />
         ))}
 
-        {activeTab === 'reports' && isFullAccess && (
-          <ReportsView currentProject={activeProject} expenses={expenses} payroll={payroll} priorities={priorities} onCompleteProject={handleCompleteProject} onCancelProject={isFullAccess ? handleCancelProject : undefined} currentUser={currentUser} />
+        {activeTab === 'reports' && isFullAccess && !hasActiveProject && <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center"><h2 className="text-lg font-black text-[#123B5D]">No Active Project</h2><p className="mt-2 text-sm text-slate-500">There are no active sites to show in Reports &amp; Costing. Add or reopen a site to view its ledgers.</p></div>}
+        {activeTab === 'reports' && isFullAccess && hasActiveProject && (
+          <ReportsView currentProject={activeProject} expenses={expenses} payroll={payroll} priorities={priorities} attendance={attendance} onUpdateProjectProgress={(projectId, progress) => setProjects((prev) => prev.map((project) => project.id === projectId ? { ...project, progress } : project))} onCompleteProject={handleCompleteProject} onCancelProject={isFullAccess ? handleCancelProject : undefined} currentUser={currentUser} />
         )}
 
         {activeTab === 'archive' && (
@@ -1014,6 +1075,7 @@ export default function App() {
         <AttendanceRecord
           projectName={activeProject.name}
           workers={workers}
+          users={users}
           projects={projects}
           records={attendance}
           onClose={() => setShowAttendanceModal(false)}
@@ -1051,11 +1113,14 @@ export default function App() {
         />
       )}
 
+      {showEditProjectModal && <ProjectModal isOpen={showEditProjectModal} onClose={() => setShowEditProjectModal(false)} onAddProject={handleAddProject} confirmPassword={confirmPassword} initialProject={activeProject} onUpdateProject={(updated) => { setProjects((previous) => previous.map((project) => project.id === updated.id ? updated : project)); setCurrentProjectId(updated.id); setShowEditProjectModal(false); }} />}
+
       {showProjectModal && (
         <ProjectModal
           isOpen={showProjectModal}
           onClose={() => setShowProjectModal(false)}
           onAddProject={handleAddProject}
+          confirmPassword={confirmPassword}
         />
       )}
 
