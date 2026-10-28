@@ -322,7 +322,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
     if (!isAdmin || !onPostLaborExpense || !postingDayAllowed || laborAlreadyPosted || projectIsClosed) return;
     const amount = Math.round((Number(laborAllocation.totalChargeableLaborExpense) || 0) * 100) / 100;
     if (amount <= 0) {
-      setLaborPostedMessage('Hindi na-post: â‚±0.00 ang chargeable labor. Tingnan ang DTR/project assignment at cutoff.');
+      setLaborPostedMessage('Hindi na-post: ₱0.00 ang chargeable labor. Tingnan ang DTR/project assignment at cutoff.');
       setTimeout(() => setLaborPostedMessage(null), 5000);
       return;
     }
@@ -331,7 +331,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
       `Site Labor Duty (${laborAllocation.maxChargeableWindowDays} days duty from project start ${currentProject.startDate}) - Cutoff ${cutoffStartDate} to ${cutoffEndDate}`
     );
     if (posted) {
-      setLaborPostedMessage(`Successfully posted â‚±${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} to Project Expenses for cutoff ${cutoffStartDate} to ${cutoffEndDate}.`);
+      setLaborPostedMessage(`Successfully posted ₱${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} to Project Expenses for cutoff ${cutoffStartDate} to ${cutoffEndDate}.`);
     } else {
       setLaborPostedMessage('Hindi na-post ang payroll expense. Maaaring naka-post na ito para sa cutoff na ito, o hindi pinapayagan ang project/account.');
     }
@@ -346,9 +346,9 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h1 className="text-xl font-black text-[#123B5D]">My Weekly Payroll</h1>
           <p className="mt-1 text-sm text-slate-500">Your own weekly payslip and daily time record only.</p>
-          {ownItem ? <div className="mt-4 rounded-xl bg-slate-50 p-4"><p className="font-bold text-[#123B5D]">{ownItem.workerName}</p><p className="mt-1 text-sm text-slate-600">{cutoffStartDate} to {cutoffEndDate}</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4"><div><p className="text-xs text-slate-500">Days Worked</p><p className="text-lg font-bold">{ownItem.daysWorked}</p></div><div><p className="text-xs text-slate-500">Gross Pay</p><p className="text-lg font-bold">â‚±{ownItem.grossPay.toLocaleString()}</p></div><div><p className="text-xs text-slate-500">Deductions</p><p className="text-lg font-bold">â‚±{ownItem.cashAdvanceDeduction.toLocaleString()}</p></div><div><p className="text-xs text-slate-500">Net Pay</p><p className="text-lg font-bold text-emerald-700">â‚±{ownItem.netPay.toLocaleString()}</p></div></div><button type="button" onClick={() => { setSelectedWorkerForPayslip(ownItem.workerId); setShowPayslipModal(true); }} className="mt-4 rounded-lg bg-[#123B5D] px-4 py-2 text-sm font-bold text-white">View My Payslip</button></div> : <p className="mt-4 text-sm text-slate-600">No payslip is available for this account yet.</p>}
+          {ownItem ? <div className="mt-4 rounded-xl bg-slate-50 p-4"><p className="font-bold text-[#123B5D]">{ownItem.workerName}</p><p className="mt-1 text-sm text-slate-600">{cutoffStartDate} to {cutoffEndDate}</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4"><div><p className="text-xs text-slate-500">Days Worked</p><p className="text-lg font-bold">{ownItem.daysWorked}</p></div><div><p className="text-xs text-slate-500">Gross Pay</p><p className="text-lg font-bold">₱{ownItem.grossPay.toLocaleString()}</p></div><div><p className="text-xs text-slate-500">Deductions</p><p className="text-lg font-bold">₱{ownItem.cashAdvanceDeduction.toLocaleString()}</p></div><div><p className="text-xs text-slate-500">Net Pay</p><p className="text-lg font-bold text-emerald-700">₱{ownItem.netPay.toLocaleString()}</p></div></div><button type="button" onClick={() => { setSelectedWorkerForPayslip(ownItem.workerId); setShowPayslipModal(true); }} className="mt-4 rounded-lg bg-[#123B5D] px-4 py-2 text-sm font-bold text-white">View My Payslip</button></div> : <p className="mt-4 text-sm text-slate-600">No payslip is available for this account yet.</p>}
         </section>
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"><h2 className="text-lg font-black text-[#123B5D]">My Daily Time Record (DTR)</h2><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[540px] text-left text-xs"><thead><tr className="border-b bg-slate-50 text-slate-600"><th className="p-3">Date</th><th className="p-3">Project</th><th className="p-3">Status</th><th className="p-3">Time In</th><th className="p-3">Time Out</th><th className="p-3">Hours</th></tr></thead><tbody>{ownRecords.map((record) => <tr key={record.id} className="border-b border-slate-100"><td className="p-3">{record.date}</td><td className="p-3">{projects.find((project) => project.id === record.projectId)?.name || record.projectId}</td><td className="p-3">{record.status}</td><td className="p-3">{record.timeIn || 'â€”'}</td><td className="p-3">{record.timeOut || 'â€”'}</td><td className="p-3">{record.hoursWorked || 0}</td></tr>)}</tbody></table>{ownRecords.length === 0 && <p className="py-5 text-sm text-slate-500">No DTR entries are available yet.</p>}</div></section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"><h2 className="text-lg font-black text-[#123B5D]">My Daily Time Record (DTR)</h2><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[540px] text-left text-xs"><thead><tr className="border-b bg-slate-50 text-slate-600"><th className="p-3">Date</th><th className="p-3">Project</th><th className="p-3">Status</th><th className="p-3">Time In</th><th className="p-3">Time Out</th><th className="p-3">Hours</th></tr></thead><tbody>{ownRecords.map((record) => <tr key={record.id} className="border-b border-slate-100"><td className="p-3">{record.date}</td><td className="p-3">{projects.find((project) => project.id === record.projectId)?.name || record.projectId}</td><td className="p-3">{record.status}</td><td className="p-3">{record.timeIn || '—'}</td><td className="p-3">{record.timeOut || '—'}</td><td className="p-3">{record.hoursWorked || 0}</td></tr>)}</tbody></table>{ownRecords.length === 0 && <p className="py-5 text-sm text-slate-500">No DTR entries are available yet.</p>}</div></section>
         <Payslip isOpen={showPayslipModal} onClose={() => setShowPayslipModal(false)} selectedWorkerId={selectedWorkerForPayslip} payrollItems={ownItem ? [ownItem] : []} company={DEFAULT_COMPANY} activeProject={currentProject} startDate={cutoffStartDate} endDate={cutoffEndDate} />
       </div>
     );
@@ -485,7 +485,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
       {!isAdmin && <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
         <h2 className="text-lg font-black text-[#123B5D]">My Daily Time Record (DTR)</h2>
         <p className="mt-1 text-xs text-slate-500">Only your own attendance records are shown.</p>
-        <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[560px] text-left text-xs"><thead><tr className="border-b bg-slate-50 text-slate-600"><th className="p-3">Date</th><th className="p-3">Project</th><th className="p-3">Status</th><th className="p-3">Time In</th><th className="p-3">Time Out</th><th className="p-3">Hours</th></tr></thead><tbody>{attendance.filter((record) => record.workerName?.toLowerCase() === currentUser?.name?.toLowerCase()).sort((a,b) => b.date.localeCompare(a.date)).map((record) => <tr key={record.id} className="border-b border-slate-100"><td className="p-3">{record.date}</td><td className="p-3">{projects.find((project) => project.id === record.projectId)?.name || record.projectId}</td><td className="p-3">{record.status}</td><td className="p-3">{record.timeIn || 'â€”'}</td><td className="p-3">{record.timeOut || 'â€”'}</td><td className="p-3">{record.hoursWorked || 0}</td></tr>)}</tbody></table></div>
+        <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[560px] text-left text-xs"><thead><tr className="border-b bg-slate-50 text-slate-600"><th className="p-3">Date</th><th className="p-3">Project</th><th className="p-3">Status</th><th className="p-3">Time In</th><th className="p-3">Time Out</th><th className="p-3">Hours</th></tr></thead><tbody>{attendance.filter((record) => record.workerName?.toLowerCase() === currentUser?.name?.toLowerCase()).sort((a,b) => b.date.localeCompare(a.date)).map((record) => <tr key={record.id} className="border-b border-slate-100"><td className="p-3">{record.date}</td><td className="p-3">{projects.find((project) => project.id === record.projectId)?.name || record.projectId}</td><td className="p-3">{record.status}</td><td className="p-3">{record.timeIn || '—'}</td><td className="p-3">{record.timeOut || '—'}</td><td className="p-3">{record.hoursWorked || 0}</td></tr>)}</tbody></table></div>
       </section>}
 
       {/* Summary Banner */}
@@ -495,7 +495,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             Total Weekly Wage Payout (Take-Home Net)
           </p>
           <h2 className="text-3xl sm:text-4xl font-black mt-1 font-mono tracking-tight text-[#18A999]">
-            â‚±{totalWeeklyPayroll.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₱{totalWeeklyPayroll.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h2>
           <p className="text-xs text-teal-100/70 mt-1">
             Cutoff Period: {cutoffLabel}
@@ -510,7 +510,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
           <div className="bg-[#0e2e49] border border-[#1a4c75] px-4 py-2.5 rounded-xl text-center flex-1 md:flex-initial">
             <span className="text-[11px] text-teal-200/80 block">Active Cash Advances</span>
             <p className="text-lg font-bold text-amber-300">
-              â‚±{activeCashAdvances.filter((c) => !c.deducted).reduce((sum, c) => sum + c.amount, 0).toLocaleString()}
+              ₱{activeCashAdvances.filter((c) => !c.deducted).reduce((sum, c) => sum + c.amount, 0).toLocaleString()}
             </p>
           </div>
           {onMarkAllPaid && activePayroll.some((w) => !w.paid) && (
@@ -532,11 +532,11 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Project Labor Expense Allocation</p>
               <h2 className="mt-1 text-lg font-black text-[#123B5D]">Chargeable Labor to Project</h2>
-              <p className="mt-1 text-xs text-slate-500">{currentProject.name} Â· Cutoff {cutoffStartDate} to {cutoffEndDate}</p>
-              <p className="mt-1 text-xs text-slate-500">{laborAllocation.maxChargeableWindowDays} chargeable duty days Â· Gross labor cost before cash-advance deductions.</p>
+              <p className="mt-1 text-xs text-slate-500">{currentProject.name} · Cutoff {cutoffStartDate} to {cutoffEndDate}</p>
+              <p className="mt-1 text-xs text-slate-500">{laborAllocation.maxChargeableWindowDays} chargeable duty days · Gross labor cost before cash-advance deductions.</p>
             </div>
             <div className="flex flex-col items-start gap-2 sm:items-end">
-              <p className="text-2xl font-black tabular-nums text-[#123B5D]">â‚±{laborAllocation.totalChargeableLaborExpense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-2xl font-black tabular-nums text-[#123B5D]">₱{laborAllocation.totalChargeableLaborExpense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               <button
                 type="button"
                 onClick={handlePostLaborToProject}
@@ -547,6 +547,9 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
               </button>
             </div>
           </div>
+          {laborAllocation.totalChargeableLaborExpense <= 0 && (
+            <p className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">Walang labor amount na mako-post. I-check ang DTR, project assignment, at cutoff dates.</p>
+          )}
         </section>
       )}
 
@@ -575,14 +578,14 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                     <p className="font-bold text-[#123B5D]">{worker.workerName}</p>
                     <span className="text-[11px] text-[#546e7a] font-medium">{worker.role}</span>
                   </td>
-                  <td className="py-3 px-3 text-right text-[#546e7a] font-mono">â‚±{worker.dailyRate}</td>
+                  <td className="py-3 px-3 text-right text-[#546e7a] font-mono">₱{worker.dailyRate}</td>
                   <td className="py-3 px-3 text-center font-bold text-[#263238]">{worker.daysWorked}d</td>
                   <td className="py-3 px-3 text-center text-[#18A999] font-bold">{ot}h</td>
-                  <td className="py-3 px-3 text-right text-[#546e7a] font-mono">â‚±{worker.grossPay?.toFixed(2)}</td>
+                  <td className="py-3 px-3 text-right text-[#546e7a] font-mono">₱{worker.grossPay?.toFixed(2)}</td>
                   <td className="py-3 px-3 text-right text-rose-600 font-bold font-mono">
                     {worker.cashAdvance > 0 ? (
                       <span className="inline-flex items-center gap-1">
-                        -â‚±{worker.cashAdvance.toLocaleString()}
+                        -₱{worker.cashAdvance.toLocaleString()}
                         <button
                           onClick={() => {
                             setCaWorkerId(worker.workerId);
@@ -608,7 +611,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                     )}
                   </td>
                   <td className="py-3 px-3 text-right font-black font-mono text-[#0d786d] text-sm">
-                    â‚±{worker.netPay?.toFixed(2)}
+                    ₱{worker.netPay?.toFixed(2)}
                   </td>
                   <td className="py-3 px-4 text-center">
                     <button
@@ -655,7 +658,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             <div className="px-5 py-4 bg-[#123B5D] text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold">
-                  <span className="text-lg font-black">â‚±</span>
+                  <span className="text-lg font-black">₱</span>
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-white">Cash Advance Entry</h3>
@@ -668,7 +671,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                 onClick={() => setShowCashAdvanceModal(false)}
                 className="text-white/70 hover:text-white cursor-pointer font-bold"
               >
-                âœ•
+                ✕
               </button>
             </div>
 
@@ -682,7 +685,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                 >
                   {externalWorkers.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.name} â€” {w.role} (Rate: â‚±{w.dailyRate}/day)
+                      {w.name} — {w.role} (Rate: ₱{w.dailyRate}/day)
                     </option>
                   ))}
                 </select>
@@ -731,7 +734,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                   <input type="number" required min="1" max={caAmount} value={caInstallment} onChange={(e) => setCaInstallment(Math.min(caAmount || 1, Math.max(1, Number(e.target.value) || 1)))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#123B5D]" />
                 </div>
                 <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-800 flex items-center">
-                  <strong>Installment Deduction:</strong>&nbsp; â‚±{Math.min(caInstallment, caAmount).toLocaleString()} per payday until the â‚±{caAmount.toLocaleString()} advance is fully repaid.
+                  <strong>Installment Deduction:</strong>&nbsp; ₱{Math.min(caInstallment, caAmount).toLocaleString()} per payday until the ₱{caAmount.toLocaleString()} advance is fully repaid.
                 </div>
               </div>
 
@@ -773,7 +776,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                 onClick={() => setShowCashAdvanceLedger(false)}
                 className="text-white/70 hover:text-white cursor-pointer font-bold"
               >
-                âœ•
+                ✕
               </button>
             </div>
 
@@ -808,7 +811,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
 
                       <div className="flex items-center gap-3">
                         <span className="font-mono font-black text-rose-600 text-sm">
-                          â‚±{ca.amount.toLocaleString()}
+                          ₱{ca.amount.toLocaleString()}
                         </span>
                         <button
                           onClick={() => handleDeleteCA(ca.id)}
@@ -828,7 +831,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
               <span className="text-xs text-[#546e7a]">
                 Total Unsettled Cash Advances:{' '}
                 <strong className="text-rose-600 font-mono">
-                  â‚±{activeCashAdvances.filter((c) => !c.deducted).reduce((s, c) => s + c.amount, 0).toLocaleString()}
+                  ₱{activeCashAdvances.filter((c) => !c.deducted).reduce((s, c) => s + c.amount, 0).toLocaleString()}
                 </strong>
               </span>
               <button
@@ -872,4 +875,3 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
 };
 
 export default WeeklyPayrollView;
-
