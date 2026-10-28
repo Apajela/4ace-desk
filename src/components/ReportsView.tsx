@@ -10,7 +10,6 @@ import {
   TrendingUp,
   Printer,
   Building,
-  DollarSign,
   PieChart,
   BarChart3,
   Clock,
@@ -32,9 +31,11 @@ export interface ReportsViewProps {
   expenses: ExpenseItem[];
   payroll: PayrollEntry[];
   priorities?: SitePriorityItem[];
-  onCompleteProject?: (projectId: string) => void;
+  onCompleteProject?: (projectId: string) => boolean | void;
   onCancelProject?: (projectId: string) => void;
   currentUser?: UserProfile | null;
+  attendance?: { projectId: string; date: string; hoursWorked: number; workerId: string }[];
+  onUpdateProjectProgress?: (projectId: string, progress: number) => void;
 }
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
@@ -45,8 +46,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   onCompleteProject,
   onCancelProject,
   currentUser,
+  attendance = [],
+  onUpdateProjectProgress,
 }) => {
-  const [activeTab, setActiveTab] = useState<'executive' | 'financial' | 'labor' | 'materials' | 'daily_log'>('labor');
+  const [activeTab, setActiveTab] = useState<'actual_cost' | 'labor' | 'materials' | 'daily_log'>('actual_cost');
   const [completedSuccessToast, setCompletedSuccessToast] = useState(false);
 
   // Filter project-specific materials/expenses
@@ -56,7 +59,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     );
   }, [expenses, currentProject]);
 
-  const totalMaterialsCost = projectExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const projectStartDate = currentProject.startDate || '0000-00-00';
+  const materialExpenses = projectExpenses.filter((e) => String(e.category || '').toLowerCase().includes('material') && Boolean(e.date) && e.date >= projectStartDate);
+  const otherExpenses = projectExpenses.filter((e) => !String(e.category || '').toLowerCase().includes('material') && String(e.category || '').toLowerCase() !== 'labor' && Boolean(e.date) && e.date >= projectStartDate);
+  const totalMaterialsCost = materialExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const totalOtherCost = otherExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
   // Project-date-bound labor allocation (Oct 19-25 with Oct 22 start = 3 days duty charged)
   const laborAllocation = useMemo(() => {
@@ -69,7 +76,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   }, [payroll, currentProject]);
 
   // Actual cost: materials + prorated labor charged to this project
-  const totalActualCost = totalMaterialsCost + laborAllocation.totalChargeableLaborExpense;
+  const postedLaborExpenses = projectExpenses.filter((e) => String(e.category || '').toLowerCase() === 'labor' && Boolean(e.date) && e.date >= projectStartDate);
+  const totalLaborCost = postedLaborExpenses.length ? postedLaborExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0) : laborAllocation.totalChargeableLaborExpense;
+  const totalActualCost = totalMaterialsCost + totalLaborCost + totalOtherCost;
+  const totalManHours = attendance.filter((record) => record.projectId === currentProject.id && record.date >= projectStartDate).reduce((sum, record) => sum + (Number(record.hoursWorked) || 0), 0);
   const budgetUtilization = Math.round((totalActualCost / (currentProject.budget || 1)) * 100);
 
   // Browser print action
@@ -84,19 +94,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   // Mark as Completed Project Action (Allowed anytime, even if progress < 100%)
   const handleMarkAsCompleted = () => {
-    if (onCompleteProject) {
-      onCompleteProject(currentProject.id);
-    }
+    const completed = onCompleteProject?.(currentProject.id);
+    if (completed === false) return;
     setCompletedSuccessToast(true);
-    setTimeout(() => {
-      setCompletedSuccessToast(false);
-    }, 6000);
+    setTimeout(() => setCompletedSuccessToast(false), 6000);
   };
 
   const handleCancelProject = () => {
-    if (window.confirm(`Cancel project "${currentProject.name}"? It will be removed from the active project list.`)) {
-      onCancelProject?.(currentProject.id);
-    }
+    onCancelProject?.(currentProject.id);
   };
 
   return (
@@ -128,7 +133,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </p>
         </div>
 
-        {/* Action Buttons: Mark as Completed Project, Save PDF, and Print Report */}
+        {/* Project lifecycle actions; site-record editing is available from the main navigation. */}
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Mark as Completed Project Button (No download triggered here) */}
           <button
@@ -174,6 +179,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       {/* Report Navigation Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200 text-xs font-bold">
         {[
+          { id: 'actual_cost', label: 'Actual Total Cost', icon: PieChart },
           { id: 'labor', label: 'Manpower & Prorated Labor Cost', icon: Users },
           { id: 'materials', label: 'Materials & Delivery Ledger', icon: Package },
           { id: 'daily_log', label: 'Daily Site Priority Log', icon: FileCheck },
@@ -197,60 +203,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         })}
       </div>
 
-      {/* Project summary metrics appear on Materials and Daily Site Priority reports */}
-      {(activeTab === 'materials' || activeTab === 'daily_log') && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-          <div className="flex items-center justify-between text-[#263238]/70 text-xs font-semibold mb-1">
-            <span>Project Contract Sum</span>
-            <Building className="w-4 h-4 text-[#123B5D]" />
+      {activeTab === 'actual_cost' && <div className="space-y-4 printable-document">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
+          <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 mb-4">
+            <div><h3 className="text-sm font-black text-[#123B5D] uppercase tracking-wider">Total Actual Cost Summary</h3><p className="text-xs text-slate-500 mt-1">All recorded project expenses since project start, including materials, labor, and other costs.</p></div>
+            <div className="text-right"><div className="text-xs text-slate-500">Total Actual Cost</div><div className="text-2xl font-black text-[#123B5D]">₱{totalActualCost.toLocaleString('en-US',{minimumFractionDigits:2})}</div><div className="text-xs font-bold text-[#18A999]">{budgetUtilization}% of contract sum</div></div>
           </div>
-          <div className="text-xl font-black text-[#123B5D] font-mono">
-            ₱{currentProject.budget.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-          </div>
-          <div className="text-[11px] text-[#263238]/60 mt-1">
-            Client: {currentProject.client}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-          <div className="flex items-center justify-between text-[#263238]/70 text-xs font-semibold mb-1">
-            <span>Actual Cost to Date</span>
-            <DollarSign className="w-4 h-4 text-[#18A999]" />
-          </div>
-          <div className="text-xl font-black text-[#123B5D] font-mono">
-            ₱{totalActualCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-          </div>
-          <div className="text-[11px] text-[#18A999] font-bold mt-1">
-            {budgetUtilization}% of Total Allocation
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-          <div className="flex items-center justify-between text-[#263238]/70 text-xs font-semibold mb-1">
-            <span>Physical Progress</span>
-            <TrendingUp className="w-4 h-4 text-[#18A999]" />
-          </div>
-          <div className="text-xl font-black text-[#123B5D]">
-            {currentProject.progress}% Accomplished
-          </div>
-          <div className="w-full h-1.5 bg-[#EAF7FA] rounded-full mt-2 overflow-hidden">
-            <div className="h-full bg-[#18A999]" style={{ width: `${currentProject.progress}%` }} />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-          <div className="flex items-center justify-between text-[#263238]/70 text-xs font-semibold mb-1">
-            <span>Total Man-Hours Logged</span>
-            <Clock className="w-4 h-4 text-[#123B5D]" />
-          </div>
-          <div className="text-xl font-black text-[#123B5D]">
-            14,800 Hours
-          </div>
-          <div className="text-[11px] text-[#263238]/60 mt-1">
-            Recorded On-Site Shifts
-          </div>
+          <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-[#EAF7FA] text-[#123B5D] font-bold"><tr><th className="p-3">Expense Category</th><th className="p-3">Summary</th><th className="p-3 text-right">Amount</th></tr></thead><tbody className="divide-y divide-slate-100">
+            <tr><td className="p-3">Materials</td><td className="p-3">Supplier invoices and material purchases ({materialExpenses.length} records)</td><td className="p-3 text-right font-bold">₱{totalMaterialsCost.toLocaleString('en-US',{minimumFractionDigits:2})}</td></tr>
+            <tr><td className="p-3">Labor</td><td className="p-3">Prorated labor cost ({postedLaborExpenses.length} posted labor records)</td><td className="p-3 text-right font-bold">₱{totalLaborCost.toLocaleString('en-US',{minimumFractionDigits:2})}</td></tr>
+            <tr><td className="p-3">Other Expenses</td><td className="p-3">Equipment, subcontractor, permits, and other recorded expenses ({otherExpenses.length} records)</td><td className="p-3 text-right font-bold">₱{totalOtherCost.toLocaleString('en-US',{minimumFractionDigits:2})}</td></tr>
+          </tbody><tfoot className="bg-[#EAF7FA] font-black"><tr><td colSpan={2} className="p-3">TOTAL ACTUAL COST</td><td className="p-3 text-right text-[#18A999]">₱{totalActualCost.toLocaleString('en-US',{minimumFractionDigits:2})}</td></tr></tfoot></table></div>
+          <div className="flex justify-end gap-2 mt-4 print:hidden"><button onClick={handleDownloadPdf} className="px-3 py-2 rounded-lg bg-[#18A999] text-white text-xs font-bold">Save</button><button onClick={handlePrint} className="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold">Print</button></div>
         </div>
       </div>}
+
+      {activeTab === 'actual_cost' && currentUser?.accessLevel === 'Full Access (Admin)' && <div className="bg-white border border-slate-200 rounded-xl p-4"><label className="block text-xs font-bold text-[#123B5D]">Physical Progress (%) — Full Access only<input type="number" min={0} max={100} value={currentProject.progress} onChange={(event) => onUpdateProjectProgress?.(currentProject.id, Math.max(0, Math.min(100, Number(event.target.value) || 0)))} className="mt-2 w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label><div className="mt-3 h-2 w-full rounded-full bg-[#EAF7FA] overflow-hidden"><div className="h-full bg-[#18A999]" style={{width:`${currentProject.progress}%`}} /></div><p className="text-xs text-slate-500 mt-1">The saved percentage is shared with the project dashboard.</p></div>}
 
       {/* Legacy executive/financial panels are intentionally not exposed as tabs. */}
       {/* TAB 1: EXECUTIVE & SITE PROGRESS REPORT */}
@@ -272,7 +240,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Save PDF</span>
+                  <span>Save</span>
                 </button>
                 <button
                   onClick={handlePrint}
@@ -349,7 +317,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Save PDF</span>
+                    <span>Save</span>
                   </button>
                   <button
                     onClick={handlePrint}
@@ -448,7 +416,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Save PDF</span>
+                  <span>Save</span>
                 </button>
                 <button
                   onClick={handlePrint}
@@ -545,7 +513,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Save PDF</span>
+                  <span>Save</span>
                 </button>
                 <button
                   onClick={handlePrint}
@@ -570,7 +538,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {projectExpenses.map((exp) => (
+                  {materialExpenses.map((exp) => (
                     <tr key={exp.id} className="hover:bg-slate-50">
                       <td className="py-2.5 px-3 font-mono">{exp.date}</td>
                       <td className="py-2.5 px-3">
@@ -627,7 +595,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-[#18A999] text-white rounded-xl text-xs font-bold hover:bg-[#148f81] cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Save PDF</span>
+                  <span>Save</span>
                 </button>
                 <button
                   onClick={handlePrint}
@@ -648,8 +616,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 .filter((item) => (item.projectId ? item.projectId === currentProject.id : item.siteName === currentProject.name))
                 .map((item) => {
                   const checks = item.checklistItems || [];
-                  const doneChecks = checks.filter((check) => check.completed).length;
-                  const percent = checks.length ? Math.round((doneChecks / checks.length) * 100) : (item.completed ? 100 : 0);
                   const closed = item.completed || ['done', 'completed', 'closed'].includes(String(item.status || '').toLowerCase());
                   return (
                     <div key={item.id} className="p-4 bg-[#EAF7FA]/40 border border-slate-200 rounded-xl space-y-2 text-xs">
@@ -663,13 +629,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                       </div>
                       <p className="font-bold text-[#123B5D]">{item.title}</p>
                       {item.description && <p className="text-slate-600">{item.description}</p>}
-                      {checks.length > 0 && (
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] text-[#546e7a]"><span>Inspection checks</span><strong>{doneChecks}/{checks.length} ({percent}%)</strong></div>
-                          <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full bg-[#18A999]" style={{ width: `${percent}%` }} /></div>
-                          <ul className="list-disc pl-5 text-slate-600">{checks.map((check) => <li key={check.id} className={check.completed ? 'line-through' : ''}>{check.text}</li>)}</ul>
-                        </div>
-                      )}
+                      {checks.length > 0 && <ul className="list-disc pl-5 text-slate-600">{checks.map((check) => <li key={check.id} className={check.completed ? 'line-through' : ''}>{check.text}</li>)}</ul>}
                       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-2 text-[11px] text-[#546e7a]">
                         <span>{item.assignedTo || 'Unassigned'}</span>
                         <span>Status: <strong className={closed ? 'text-emerald-700' : 'text-amber-700'}>{closed ? 'Done' : item.status || 'Pending'}</strong></span>

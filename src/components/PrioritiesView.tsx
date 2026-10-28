@@ -18,7 +18,6 @@ import {
   Filter,
   Calendar,
   User,
-  ShieldCheck,
   Building2,
   X,
   FileCheck2,
@@ -52,11 +51,7 @@ export const PrioritiesView: React.FC<PrioritiesViewProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newPriorityLvl, setNewPriorityLvl] = useState<PriorityLevel>('high');
-  const [newAssignedTo, setNewAssignedTo] = useState('Foreman Danilo Ramos');
   const [newTargetDate, setNewTargetDate] = useState('2026-10-28');
-  const [initialChecklist, setInitialChecklist] = useState<string>(
-    'Verify rebar spacing and clearance\nClean sawdust and tie wires from slab'
-  );
 
   const projectPriorities = priorities.filter(
     (p) => !p.projectId || p.projectId === currentProject.id || p.siteName === currentProject.name
@@ -98,16 +93,6 @@ export const PrioritiesView: React.FC<PrioritiesViewProps> = ({
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    const checklistItems = initialChecklist
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((text, idx) => ({
-        id: `c-new-${Date.now()}-${idx}`,
-        text,
-        completed: false,
-      }));
-
     onAddPriority({
       projectId: currentProject.id,
       siteName: currentProject.name,
@@ -117,13 +102,10 @@ export const PrioritiesView: React.FC<PrioritiesViewProps> = ({
       trade: 'General',
       status: 'todo',
       completed: false,
-      assignedTo: newAssignedTo,
+      assignedTo: '',
       dueDate: newTargetDate,
       targetDate: newTargetDate,
-      checklistItems:
-        checklistItems.length > 0
-          ? checklistItems
-          : [{ id: `c-default-${Date.now()}`, text: 'Initial site verification', completed: false }],
+      checklistItems: [],
     });
 
     setNewTitle('');
@@ -303,11 +285,6 @@ export const PrioritiesView: React.FC<PrioritiesViewProps> = ({
                     </div>
                   ) : (
                     items.map((task) => {
-                      const checklist = task.checklistItems || [];
-                      const completedCount = checklist.filter((i) => i.completed).length;
-                      const totalCount = checklist.length;
-                      const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : (task.completed ? 100 : 0);
-
                       return (
                         <div
                           key={task.id}
@@ -332,26 +309,6 @@ export const PrioritiesView: React.FC<PrioritiesViewProps> = ({
                             <p className="text-[11px] text-[#546e7a] line-clamp-2 mb-3">
                               {task.description}
                             </p>
-                          )}
-
-                          {totalCount > 0 && (
-                            <div className="mb-3 pt-2 border-t border-slate-100">
-                              <div className="flex items-center justify-between text-[11px] text-[#546e7a] mb-1">
-                                <span className="flex items-center gap-1 font-medium">
-                                  <ShieldCheck className="w-3.5 h-3.5 text-[#18A999]" />
-                                  Inspection checks
-                                </span>
-                                <span className="font-mono text-[#123B5D] font-semibold">{completedCount}/{totalCount} ({pct}%)</span>
-                              </div>
-                              <div className="w-full h-1.5 bg-[#EAF7FA] rounded-full overflow-hidden border border-[#cbeaf0]">
-                                <div
-                                  className={`h-full ${
-                                    pct === 100 ? 'bg-[#0d786d]' : 'bg-[#18A999]'
-                                  }`}
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                            </div>
                           )}
 
                           <div className="flex items-center justify-between text-[11px] text-[#546e7a] pt-1">
@@ -433,29 +390,17 @@ export const PrioritiesView: React.FC<PrioritiesViewProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-[#123B5D] mb-1">Priority Level</label>
-                  <select
-                    value={newPriorityLvl}
-                    onChange={(e) => setNewPriorityLvl(e.target.value as PriorityLevel)}
-                    className="w-full px-3 py-2 border border-[#cbeaf0] rounded-xl text-[#263238] bg-white focus:outline-none focus:border-[#18A999]"
-                  >
-                    <option value="high">High Priority</option>
-                    <option value="medium">Medium Priority</option>
-                    <option value="normal">Normal Routine</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-[#123B5D] mb-1">In-Charge</label>
-                  <input
-                    type="text"
-                    value={newAssignedTo}
-                    onChange={(e) => setNewAssignedTo(e.target.value)}
-                    placeholder="e.g. Lead In-Charge / Supervisor"
-                    className="w-full px-3 py-2 border border-[#cbeaf0] rounded-xl text-[#263238] focus:outline-none focus:border-[#18A999]"
-                  />
-                </div>
+              <div>
+                <label className="block font-semibold text-[#123B5D] mb-1">Priority Level</label>
+                <select
+                  value={newPriorityLvl}
+                  onChange={(e) => setNewPriorityLvl(e.target.value as PriorityLevel)}
+                  className="w-full px-3 py-2 border border-[#cbeaf0] rounded-xl text-[#263238] bg-white focus:outline-none focus:border-[#18A999]"
+                >
+                  <option value="high">High Priority</option>
+                  <option value="medium">Medium Priority</option>
+                  <option value="normal">Normal Routine</option>
+                </select>
               </div>
 
               <div>
@@ -465,19 +410,6 @@ export const PrioritiesView: React.FC<PrioritiesViewProps> = ({
                   value={newTargetDate}
                   onChange={(e) => setNewTargetDate(e.target.value)}
                   className="w-full px-3 py-2 border border-[#cbeaf0] rounded-xl text-[#263238] focus:outline-none focus:border-[#18A999]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-[#123B5D] mb-1">
-                  Checklist Inspection Points (1 line per item)
-                </label>
-                <textarea
-                  rows={3}
-                  value={initialChecklist}
-                  onChange={(e) => setInitialChecklist(e.target.value)}
-                  placeholder="Verify beam bottom clearance&#10;Check electrical conduit sleeve&#10;Clean debris before pouring"
-                  className="w-full px-3 py-2 border border-[#cbeaf0] rounded-xl font-mono text-[11px] text-[#263238] focus:outline-none focus:border-[#18A999]"
                 />
               </div>
 

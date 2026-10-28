@@ -44,7 +44,10 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
     setScanComplete(false);
     setExtracted(null);
     try {
-      const { createWorker } = await import('tesseract.js');
+      // Load OCR from the official package CDN at runtime so the build does not
+      // depend on a missing lockfile entry. OCR still requires an internet connection.
+      const tesseractModuleUrl = 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/+esm';
+      const { createWorker } = await import(/* @vite-ignore */ tesseractModuleUrl);
       const worker = await createWorker('eng');
       const result = await worker.recognize(file);
       await worker.terminate();

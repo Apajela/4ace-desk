@@ -225,10 +225,6 @@ export const SitePrioritiesChecklist: React.FC<SitePrioritiesChecklistProps> = (
                 {isExpanded && (
                   <div className="px-4 pb-4 pt-1 border-t border-[#cbeaf0] bg-[#EAF7FA]/30 rounded-b-2xl">
                     <div className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs text-[#546e7a]">
-                      <span className="flex items-center gap-1">
-                        <User className="w-3.5 h-3.5 text-[#18A999]" />
-                        In-Charge: <strong className="text-[#123B5D]">{priority.assignedTo || 'Lead Foreman'}</strong>
-                      </span>
                       {onStatusChange && (
                         <div className="flex items-center gap-1.5">
                           <span className="text-[#546e7a]">Status:</span>

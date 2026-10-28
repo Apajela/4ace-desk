@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import {
   Users,
   Calendar,
-  DollarSign,
   Download,
   CheckCircle,
   Clock,
@@ -16,7 +15,6 @@ import {
   FileText,
   BadgeAlert,
   HelpCircle,
-  Building,
 } from 'lucide-react';
 import { Worker, Project, PayrollEntry, PayrollItemData, CashAdvance, UserProfile } from '../types';
 import { DEFAULT_WORKERS, DEFAULT_PAYROLL, DEFAULT_COMPANY, DEFAULT_PROJECTS, DEFAULT_CASH_ADVANCES } from '../data/defaultData';
@@ -33,10 +31,10 @@ export interface WeeklyPayrollViewProps {
   onAddCashAdvance?: (ca: Omit<CashAdvance, 'id'>) => void;
   onDeleteCashAdvance?: (id: string) => void;
   onToggleCashAdvanceStatus?: (id: string) => void;
-  onUpdatePayrollEntry?: (updated: PayrollEntry) => void;
-  onMarkAllPaid?: () => void;
+  onUpdatePayrollEntry?: (updated: PayrollEntry, laborExpense?: { amount: number; projectId: string; projectName: string; cutoffStartDate: string; cutoffEndDate: string; workerId: string; workerName: string; date: string }) => void;
+  onMarkAllPaid?: (entries: PayrollEntry[]) => void;
   onLogAttendanceClick?: () => void;
-  onPostLaborExpense?: (amount: number, description: string) => void;
+  onPostLaborExpense?: (amount: number, description: string) => boolean;
   currentUser?: UserProfile | null;
   expenses?: { projectId: string; category: string; description?: string; date?: string }[];
   attendance?: { id: string; workerId: string; workerName: string; projectId: string; date: string; status: string; timeIn: string; timeOut?: string; hoursWorked: number }[];
@@ -114,6 +112,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
   // Cash Advance form state
   const [caWorkerId, setCaWorkerId] = useState<string>(externalWorkers[0]?.id || '');
   const [caAmount, setCaAmount] = useState<number>(500);
+  const [caInstallment, setCaInstallment] = useState<number>(500);
   const [caDate, setCaDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [caReason, setCaReason] = useState<string>('Emergency family allowance / Grocery');
 
@@ -141,14 +140,18 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
   // Merge cash advances into worker payroll entries dynamically
   const activePayroll: PayrollEntry[] = useMemo(() => {
     return basePayroll.map((entry) => {
-      const workerCAs = activeCashAdvances.filter((ca) => ca.workerId === entry.workerId && !ca.deducted);
-      const totalCA = workerCAs.reduce((sum, item) => sum + item.amount, 0);
+      const workerCAs = activeCashAdvances.filter((ca) => ca.workerId === entry.workerId && ca.projectId === currentProject.id && !ca.deducted);
+      const totalCA = workerCAs.reduce((sum, item) => sum + Math.min(item.deductionPerPayroll ?? 500, item.remainingBalance ?? item.amount), 0);
       const weekRecords = attendance.filter((record) => record.workerId === entry.workerId && record.date >= cutoffStartDate && record.date <= cutoffEndDate);
-      const days = weekRecords.length ? Math.min(6, weekRecords.reduce((sum, record) => {
-        const status = String(record.status).toLowerCase();
-        return sum + (status === 'absent' ? 0 : status === 'half_day' || status === 'half day' ? 0.5 : 1);
+      // A worker can appear on multiple project records on the same date; count the date once.
+      const byDate = new Map<string, typeof weekRecords>();
+      weekRecords.forEach((record) => byDate.set(record.date, [...(byDate.get(record.date) || []), record]));
+      const uniqueDays = [...byDate.values()];
+      const days = weekRecords.length ? Math.min(6, uniqueDays.reduce((sum, recordsForDay) => {
+        const multipliers = recordsForDay.map((record) => { const status = String(record.status).toLowerCase(); return status === 'absent' ? 0 : status === 'half_day' || status === 'half day' ? 0.5 : 1; });
+        return sum + Math.max(...multipliers);
       }, 0)) : (entry.daysWorked || 0);
-      const ot = weekRecords.length ? weekRecords.reduce((sum, record) => sum + (Number(record.otHours ?? (record as any).overtimeHours) || 0), 0) : (entry.otHours ?? entry.overtimeHours ?? 0);
+      const ot = weekRecords.length ? uniqueDays.reduce((sum, recordsForDay) => sum + Math.max(0, ...recordsForDay.map((record) => Number(record.otHours ?? (record as any).overtimeHours) || 0)), 0) : (entry.otHours ?? entry.overtimeHours ?? 0);
       const rate = entry.dailyRate || 0;
       const regularPay = days * rate;
       const otPay = (rate / 8) * 1.25 * ot;
@@ -162,14 +165,26 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
 
   // Project-date-bound labor allocation calculation
   const laborAllocation = useMemo(() => {
+    const hasAnyAttendanceInCutoff = attendance.some((record) => record.date >= cutoffStartDate && record.date <= cutoffEndDate);
     const projectPayroll = activePayroll.map((entry) => {
       const projectRecords = attendance.filter((record) => record.workerId === entry.workerId && record.projectId === currentProject.id && record.date >= cutoffStartDate && record.date <= cutoffEndDate);
-      const daysWorked = projectRecords.reduce((days, record) => {
-        const status = String(record.status).toLowerCase();
-        if (status === 'absent') return days;
-        return days + (status === 'half day' || status === 'half_day' ? 0.5 : 1);
+      const projectDays = new Map<string, typeof projectRecords>();
+      projectRecords.forEach((record) => projectDays.set(record.date, [...(projectDays.get(record.date) || []), record]));
+      const projectDaysWorked = [...projectDays.entries()].reduce((days, [date, recordsForProjectDay]) => {
+        const allWorkerRecordsForDate = attendance.filter((record) => record.workerId === entry.workerId && record.date === date);
+        const distinctProjectCount = new Set(allWorkerRecordsForDate.map((record) => record.projectId)).size || 1;
+        const multipliers = recordsForProjectDay.map((record) => { const status = String(record.status).toLowerCase(); return status === 'absent' ? 0 : status === 'half day' || status === 'half_day' ? 0.5 : 1; });
+        return days + Math.max(...multipliers) / distinctProjectCount;
       }, 0);
-      const overtimeHours = projectRecords.reduce((hours, record) => hours + (Number((record as any).otHours) || 0), 0);
+      const projectOvertimeHours = [...projectDays.entries()].reduce((hours, [date, recordsForProjectDay]) => {
+        const allWorkerRecordsForDate = attendance.filter((record) => record.workerId === entry.workerId && record.date === date);
+        const distinctProjectCount = new Set(allWorkerRecordsForDate.map((record) => record.projectId)).size || 1;
+        return hours + Math.max(0, ...recordsForProjectDay.map((record) => Number((record as any).otHours ?? (record as any).overtimeHours) || 0)) / distinctProjectCount;
+      }, 0);
+      // Older/imported payroll entries may have no DTR records. Use payroll-wide fallback
+      // only when the selected cutoff has no attendance records for any project.
+      const daysWorked = projectRecords.length ? projectDaysWorked : (!hasAnyAttendanceInCutoff ? (Number(entry.daysWorked) || 0) : 0);
+      const overtimeHours = projectRecords.length ? projectOvertimeHours : (!hasAnyAttendanceInCutoff ? (Number(entry.otHours ?? entry.overtimeHours) || 0) : 0);
       const otPay = (entry.dailyRate / 8) * 1.25 * overtimeHours;
       const grossPay = daysWorked * entry.dailyRate + otPay;
       return { ...entry, daysWorked, otHours: overtimeHours, overtimeHours, otPay, grossPay };
@@ -181,13 +196,21 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
   const laborDescription = `Site Labor Duty (${laborAllocation.maxChargeableWindowDays} days duty from project start ${currentProject.startDate}) - Cutoff ${cutoffStartDate} to ${cutoffEndDate}`;
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
-  const mondayKey = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
-  const laborAlreadyPosted = expenses.some((expense) => expense.projectId === currentProject.id && expense.category === 'Labor' && !!expense.date && expense.date >= mondayKey && expense.date <= todayKey);
+  const cutoffMarker = `cutoff ${cutoffStartDate} to ${cutoffEndDate}`.toLowerCase();
+  const laborAlreadyPosted = expenses.some((expense) => expense.projectId === currentProject.id && expense.category === 'Labor' && (expense.description || '').toLowerCase().includes(cutoffMarker));
   const isFridayCompletionPosting = today.getDay() === 5 && currentProject.targetDate === todayKey;
   const postingDayAllowed = true;
   const projectIsClosed = ['Completed','Cancelled'].includes(currentProject.status);
   const totalWeeklyPayroll = activePayroll.reduce((acc, curr) => acc + (curr.netPay || 0), 0);
+
+  const markAllPaidWithExpenses = () => {
+    if (onUpdatePayrollEntry) {
+      activePayroll.filter((entry) => !entry.paid).forEach((entry) => {
+        onUpdatePayrollEntry({ ...entry, paid: true, datePaid: todayKey });
+      });
+    }
+    onMarkAllPaid?.(activePayroll);
+  };
 
   const togglePaidStatus = (id: string) => {
     const target = activePayroll.find((p) => p.id === id);
@@ -207,12 +230,21 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
   };
 
   const payslipItems: PayrollItemData[] = activePayroll.map((p) => ({
-    projectWorkDays: Object.entries(attendance.filter((record) => record.workerId === p.workerId && record.date >= cutoffStartDate && record.date <= cutoffEndDate).reduce<Record<string, number>>((totals, record) => {
-      const status = String(record.status).toLowerCase();
-      const days = status === 'absent' ? 0 : status === 'half day' || status === 'half_day' ? 0.5 : 1;
-      totals[record.projectId] = (totals[record.projectId] || 0) + days;
-      return totals;
-    }, {})).map(([projectId, days]) => ({ projectName: projects.find((project) => project.id === projectId)?.name || projectId, days })),
+    projectWorkDays: (() => {
+      const workerRecords = attendance.filter((record) => record.workerId === p.workerId && record.date >= cutoffStartDate && record.date <= cutoffEndDate);
+      const byDate = new Map<string, typeof workerRecords>();
+      workerRecords.forEach((record) => byDate.set(record.date, [...(byDate.get(record.date) || []), record]));
+      const totals: Record<string, number> = {};
+      byDate.forEach((recordsForDate) => {
+        const projectCount = new Set(recordsForDate.map((record) => record.projectId)).size || 1;
+        recordsForDate.forEach((record) => {
+          const status = String(record.status).toLowerCase();
+          const dayValue = status === 'absent' ? 0 : status === 'half day' || status === 'half_day' ? 0.5 : 1;
+          totals[record.projectId] = (totals[record.projectId] || 0) + dayValue / projectCount;
+        });
+      });
+      return Object.entries(totals).map(([projectId, days]) => ({ projectName: projects.find((project) => project.id === projectId)?.name || projectId, days }));
+    })(),
     workerId: p.workerId,
     workerName: p.workerName,
     role: p.role,
@@ -261,6 +293,8 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
       date: caDate,
       reason: caReason,
       deducted: false,
+      deductionPerPayroll: Math.max(1, Math.min(Number(caInstallment) || 500, Number(caAmount))),
+      remainingBalance: Number(caAmount),
     };
 
     if (onAddCashAdvance) {
@@ -272,6 +306,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
 
     setShowCashAdvanceModal(false);
     setCaAmount(500);
+    setCaInstallment(500);
     setCaReason('Emergency family allowance / Grocery');
   };
 
@@ -284,16 +319,23 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
   };
 
   const handlePostLaborToProject = () => {
-    if (isAdmin && onPostLaborExpense && postingDayAllowed && !laborAlreadyPosted && !projectIsClosed) {
-      onPostLaborExpense(
-        laborAllocation.totalChargeableLaborExpense,
-        `Site Labor Duty (${laborAllocation.maxChargeableWindowDays} days duty from project start ${currentProject.startDate}) - Cutoff ${cutoffStartDate} to ${cutoffEndDate}`
-      );
-      setLaborPostedMessage(
-        `Successfully posted ₱${laborAllocation.totalChargeableLaborExpense.toLocaleString()} to Project Expenses (${laborAllocation.maxChargeableWindowDays} duty days charged starting from project commencement date)!`
-      );
+    if (!isAdmin || !onPostLaborExpense || !postingDayAllowed || laborAlreadyPosted || projectIsClosed) return;
+    const amount = Math.round((Number(laborAllocation.totalChargeableLaborExpense) || 0) * 100) / 100;
+    if (amount <= 0) {
+      setLaborPostedMessage('Hindi na-post: ₱0.00 ang chargeable labor. Tingnan ang DTR/project assignment at cutoff.');
       setTimeout(() => setLaborPostedMessage(null), 5000);
+      return;
     }
+    const posted = onPostLaborExpense(
+      amount,
+      `Site Labor Duty (${laborAllocation.maxChargeableWindowDays} days duty from project start ${currentProject.startDate}) - Cutoff ${cutoffStartDate} to ${cutoffEndDate}`
+    );
+    if (posted) {
+      setLaborPostedMessage(`Successfully posted ₱${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} to Project Expenses for cutoff ${cutoffStartDate} to ${cutoffEndDate}.`);
+    } else {
+      setLaborPostedMessage('Hindi na-post ang payroll expense. Maaaring naka-post na ito para sa cutoff na ito, o hindi pinapayagan ang project/account.');
+    }
+    setTimeout(() => setLaborPostedMessage(null), 5000);
   };
 
   if (!isAdmin) {
@@ -315,13 +357,11 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
   return (
     <div className="space-y-6 text-[#263238]">
       {/* Top Header & Cutoff Selector */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+      <div className="flex flex-col lg:flex-row-reverse justify-between items-start lg:items-start gap-4">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-bold text-[#123B5D]">Weekly Payroll &amp; Wages</h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#EAF7FA] text-[#123B5D] font-bold border border-[#cbeaf0]">
-              {currentProject.name}
-            </span>
+
           </div>
           <p className="text-xs sm:text-sm text-[#546e7a] mt-0.5">
             Release payroll on any day. Wages are based on saved DTR entries, overtime, and cash advance deductions.
@@ -329,7 +369,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
         </div>
 
         {/* Toolbar Controls */}
-        <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto">
+        <div className="flex flex-row flex-wrap items-center justify-start gap-2 w-full lg:w-auto lg:shrink-0">
           {/* Cutoff Date Range Selector */}
           <div className="flex items-center gap-2 bg-[#EAF7FA] px-3 py-2 border border-[#cbeaf0] rounded-xl text-xs font-semibold text-[#123B5D] shadow-xs">
             <Calendar className="w-4 h-4 text-[#18A999] shrink-0" />
@@ -351,16 +391,6 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
           </div>
 
           {isAdmin && <>
-          {/* Cash Advance Entry Button */}
-          <button
-            onClick={() => setShowCashAdvanceModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-xs"
-            title="Record a worker cash advance deduction"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Cash Advance Entry</span>
-          </button>
-
           {/* View Cash Advance Ledger */}
           <button
             onClick={() => setShowCashAdvanceLedger(true)}
@@ -368,7 +398,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             title="View complete cash advance deduction ledger"
           >
             <Receipt className="w-4 h-4 text-[#18A999]" />
-            <span>CA Ledger ({activeCashAdvances.filter((c) => !c.deducted).length})</span>
+            <span>Cash Advance</span>
           </button>
 
           {/* Save PDF (Master Sheet) */}
@@ -378,7 +408,17 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             title="Directly download clean Master Payroll PDF"
           >
             <Download className="w-4 h-4" />
-            <span>Save PDF (Master)</span>
+            <span>Save</span>
+          </button>
+
+          {/* View Payroll */}
+          <button
+            onClick={() => setShowMasterPrinter(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-[#123B5D] rounded-xl text-xs font-bold transition cursor-pointer shadow-xs"
+            title="View the master payroll registry"
+          >
+            <FileText className="w-4 h-4 text-[#18A999]" />
+            <span>View Payroll</span>
           </button>
 
           {/* Print Master Registry */}
@@ -388,7 +428,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             title="Open printable Master Payroll Sheet"
           >
             <Printer className="w-4 h-4 text-[#18A999]" />
-            <span>Print Master</span>
+            <span>Print</span>
           </button>
 
           </>}
@@ -399,7 +439,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             title="Open printable worker payslips"
           >
             <FileText className="w-4 h-4 text-[#18A999]" />
-            <span>{isAdmin ? `Payslips (${payslipItems.length})` : 'My Payslip'}</span>
+            <span>{isAdmin ? 'Payslips' : 'My Payslip'}</span>
           </button>
         </div>
       </div>
@@ -435,65 +475,6 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
         </div>
       )}
 
-      {/* Project Start Date Labor Proration Banner */}
-      {isAdmin && <div className="bg-[#EAF7FA] border-2 border-[#18A999]/40 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Building className="w-4 h-4 text-[#123B5D]" />
-            <h3 className="text-xs font-black uppercase tracking-wider text-[#123B5D]">
-              Project Start Date Labor Expense Allocation Rule
-            </h3>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#18A999] text-white font-bold">
-              Automated Proration
-            </span>
-          </div>
-          <p className="text-xs text-[#263238]">
-            Project: <strong className="text-[#123B5D]">{currentProject.name}</strong> | Start Date:{' '}
-            <strong className="text-[#123B5D] font-mono">{currentProject.startDate}</strong> | Cutoff:{' '}
-            <strong className="text-[#123B5D] font-mono">{cutoffStartDate} to {cutoffEndDate}</strong>
-          </p>
-          <p className="text-[11px] text-[#546e7a]">
-            {laborAllocation.isProrated ? (
-              <span>
-                Labor expenses are charged strictly starting from the project start date (<strong>{currentProject.startDate}</strong>).
-                Only <strong className="text-[#18A999]">{laborAllocation.maxChargeableWindowDays} duty days</strong> are allocated to this site project.
-                Labor shifts prior to project start date are excluded from project expenditures.
-              </span>
-            ) : (
-              <span>
-                Project was active throughout this entire week. All <strong>{laborAllocation.maxChargeableWindowDays} duty days</strong> are included in project labor costing.
-              </span>
-            )}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="text-right">
-            <span className="text-[10px] text-[#546e7a] block uppercase font-bold">
-              Chargeable Labor to Project
-            </span>
-            <div className="text-lg font-black text-[#123B5D] font-mono">
-              ₱{laborAllocation.totalChargeableLaborExpense.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </div>
-            {laborAllocation.excludedLaborPriorToStart > 0 && (
-              <span className="text-[10px] text-amber-700 font-medium">
-                (₱{laborAllocation.excludedLaborPriorToStart.toLocaleString()} excluded prior to start)
-              </span>
-            )}
-          </div>
-          {onPostLaborExpense && (
-            <button
-              onClick={handlePostLaborToProject}
-              disabled={laborAlreadyPosted || !postingDayAllowed || projectIsClosed}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs ${laborAlreadyPosted || !postingDayAllowed || projectIsClosed ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-[#18A999] hover:bg-[#148f81] text-white cursor-pointer'}`}
-              title={laborAlreadyPosted ? 'Labor expenses already posted for this project this week' : projectIsClosed ? 'Cannot post labor to a completed or cancelled project' : !postingDayAllowed ? 'Post on Saturday/Sunday, or Friday only when the project ends Friday' : 'Add this labor expense to this project ledger'}
-            >
-              {laborAlreadyPosted ? 'Already Posted This Week' : projectIsClosed ? 'Project Closed' : !postingDayAllowed ? 'Post Sat/Sun' : 'Post to Expenses'}
-            </button>
-          )}
-        </div>
-      </div>}
-
       {laborPostedMessage && (
         <div className="p-3 bg-teal-50 border border-[#18A999] rounded-xl text-[#0d786d] text-xs font-bold animate-in fade-in flex items-center gap-2">
           <CheckCircle className="w-4 h-4 text-[#18A999]" />
@@ -514,7 +495,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             Total Weekly Wage Payout (Take-Home Net)
           </p>
           <h2 className="text-3xl sm:text-4xl font-black mt-1 font-mono tracking-tight text-[#18A999]">
-            ₱{totalWeeklyPayroll.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            ₱{totalWeeklyPayroll.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h2>
           <p className="text-xs text-teal-100/70 mt-1">
             Cutoff Period: {cutoffLabel}
@@ -534,16 +515,43 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
           </div>
           {onMarkAllPaid && activePayroll.some((w) => !w.paid) && (
             <button
-              onClick={onMarkAllPaid}
-              disabled={new Date().getDay() !== 0}
-              title={new Date().getDay() !== 0 ? 'Weekly wage release is scheduled for Sunday.' : 'Release this week’s wages.'}
-              className={`px-4 py-2.5 text-white font-bold text-xs rounded-xl transition shadow-sm ${new Date().getDay() !== 0 ? 'bg-slate-300 cursor-not-allowed' : 'bg-[#18A999] hover:bg-[#148f81] cursor-pointer'}`}
+              onClick={markAllPaidWithExpenses}
+              title="Mark all unpaid workers as paid for this cutoff."
+              className="px-4 py-2.5 bg-[#18A999] hover:bg-[#148f81] text-white font-bold text-xs rounded-xl transition shadow-sm cursor-pointer"
             >
-              {new Date().getDay() !== 0 ? 'Release Sunday' : 'Disburse All'}
+              Select Paid All
             </button>
           )}
         </div>
       </div>
+
+      {/* Project labor expense posting: explicit, consolidated posting for the selected cutoff. */}
+      {isAdmin && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Project Labor Expense Allocation</p>
+              <h2 className="mt-1 text-lg font-black text-[#123B5D]">Chargeable Labor to Project</h2>
+              <p className="mt-1 text-xs text-slate-500">{currentProject.name} · Cutoff {cutoffStartDate} to {cutoffEndDate}</p>
+              <p className="mt-1 text-xs text-slate-500">{laborAllocation.maxChargeableWindowDays} chargeable duty days · Gross labor cost before cash-advance deductions.</p>
+            </div>
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              <p className="text-2xl font-black tabular-nums text-[#123B5D]">₱{laborAllocation.totalChargeableLaborExpense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <button
+                type="button"
+                onClick={handlePostLaborToProject}
+                disabled={!onPostLaborExpense || laborAlreadyPosted || projectIsClosed || laborAllocation.totalChargeableLaborExpense <= 0}
+                className="rounded-xl bg-[#18A999] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#148f81] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+              >
+                {laborAlreadyPosted ? 'Already Posted for This Cutoff' : projectIsClosed ? 'Project Closed' : 'Post to Expenses'}
+              </button>
+            </div>
+          </div>
+          {laborAllocation.totalChargeableLaborExpense <= 0 && (
+            <p className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">Walang labor amount na mako-post. I-check ang DTR, project assignment, at cutoff dates.</p>
+          )}
+        </section>
+      )}
 
       {/* Payroll Table */}
       <section className="bg-white rounded-2xl border border-[#cbeaf0] overflow-x-auto shadow-xs">
@@ -615,7 +623,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                       }`}
                     >
                       <CheckCircle className="w-3.5 h-3.5" />
-                      {worker.paid ? 'Paid' : 'Mark as Paid'}
+                      {worker.paid ? 'Paid' : 'Unpaid / Not Paid'}
                     </button>
                   </td>
                   <td className="py-3 px-3 text-center whitespace-nowrap">
@@ -650,7 +658,7 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
             <div className="px-5 py-4 bg-[#123B5D] text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold">
-                  <DollarSign className="w-5 h-5" />
+                  <span className="text-lg font-black">₱</span>
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-white">Cash Advance Entry</h3>
@@ -720,8 +728,14 @@ export const WeeklyPayrollView: React.FC<WeeklyPayrollViewProps> = ({
                 />
               </div>
 
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
-                Note: This cash advance will be deducted automatically from the worker's net take-home wage envelope for the selected cutoff.
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-[#123B5D] mb-1">Deduction per Payday (PHP) *</label>
+                  <input type="number" required min="1" max={caAmount} value={caInstallment} onChange={(e) => setCaInstallment(Math.min(caAmount || 1, Math.max(1, Number(e.target.value) || 1)))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#123B5D]" />
+                </div>
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-800 flex items-center">
+                  <strong>Installment Deduction:</strong>&nbsp; ₱{Math.min(caInstallment, caAmount).toLocaleString()} per payday until the ₱{caAmount.toLocaleString()} advance is fully repaid.
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">

@@ -9,7 +9,6 @@ import {
   RotateCcw,
   Search,
   Building,
-  DollarSign,
   Calendar,
   Users,
   TrendingUp,
@@ -99,7 +98,7 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-xl sm:text-2xl font-black text-[#123B5D] tracking-tight">
-              Project History &amp; Archived Sites
+              Project History
             </h1>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#EAF7FA] text-[#123B5D] font-bold border border-[#cbeaf0]">
               {archivedProjects.length} Archived
@@ -133,7 +132,7 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
           <div className="flex justify-between items-center text-xs font-semibold text-[#546e7a]">
             <span>Total Delivered Value</span>
             <div className="w-8 h-8 rounded-lg bg-[#EAF7FA] flex items-center justify-center text-[#123B5D]">
-              <DollarSign className="w-4 h-4" />
+              <span className="font-black">₱</span>
             </div>
           </div>
           <p className="text-2xl font-black mt-2 text-[#123B5D] font-mono">
@@ -313,7 +312,7 @@ export const CompletedProjectsView: React.FC<CompletedProjectsViewProps> = ({
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
 
-                    {onDeleteProject && <button onClick={() => { if (window.confirm(`Permanently delete ${proj.name} from project history?`)) onDeleteProject(proj.id); }} className="flex items-center gap-1 text-xs text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 font-bold px-2.5 py-1.5 rounded-xl transition cursor-pointer" title="Delete project from history"><Trash2 className="w-3.5 h-3.5" /><span>Delete Project</span></button>}
+                    {onDeleteProject && <button onClick={() => onDeleteProject(proj.id)} className="flex items-center gap-1 text-xs text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 font-bold px-2.5 py-1.5 rounded-xl transition cursor-pointer" title="Delete project from history"><Trash2 className="w-3.5 h-3.5" /><span>Delete Project</span></button>}
                     {/* Reopen / Restore Project */}
                     <button
                       onClick={() => onReopenProject(proj.id)}

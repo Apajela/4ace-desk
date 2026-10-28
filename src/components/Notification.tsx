@@ -179,7 +179,7 @@ export const NotificationModal: React.FC<NotificationProps> = ({
                     )}
                     <button
                       onClick={() => onClearNotification(item.id)}
-                      className="text-[11px] text-slate-300 hover:text-red-500 ml-auto transition-colors cursor-pointer"
+                      className="text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-md p-1 ml-auto transition-colors cursor-pointer"
                       title="Delete notification"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

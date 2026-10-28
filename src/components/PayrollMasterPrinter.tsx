@@ -84,7 +84,7 @@ export const PayrollMasterPrinter: React.FC<PayrollMasterPrinterProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-white/80">
-                Project Site: <span className="text-white font-bold">{currentProject.name}</span> | Cutoff: {cutoffPeriod}
+                Cutoff: <span className="text-white font-bold">{cutoffPeriod}</span>
               </p>
             </div>
           </div>
@@ -123,10 +123,10 @@ export const PayrollMasterPrinter: React.FC<PayrollMasterPrinterProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div>
                   <h1 className="text-xl font-black uppercase tracking-wider text-[#123B5D]">
-                    {company.companyName}
+                    4Ace Desk Construction
                   </h1>
                   <p className="text-xs text-[#263238] font-semibold mt-0.5">
-                    {company.licenseNumber} | General Engineering &amp; Building Contractor
+                    PCAB License #84920-AAA | General Engineering &amp; Building Contractor
                   </p>
                   <p className="text-[11px] text-[#263238]/70">
                     {company.address} | Tel: {company.contactNumber}
@@ -145,25 +145,7 @@ export const PayrollMasterPrinter: React.FC<PayrollMasterPrinterProps> = ({
                 </div>
               </div>
 
-              {/* Site Details Sub-bar */}
-              <div className="mt-4 p-3 bg-[#EAF7FA] border border-slate-200 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div>
-                  <span className="text-[10px] text-[#263238]/60 uppercase font-bold block">Site Project:</span>
-                  <strong className="text-[#123B5D]">{currentProject.name}</strong>
-                </div>
-                <div>
-                  <span className="text-[10px] text-[#263238]/60 uppercase font-bold block">Site Code:</span>
-                  <span className="font-mono text-[#263238] font-semibold">{currentProject.code}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-[#263238]/60 uppercase font-bold block">Location:</span>
-                  <span className="text-[#263238]">{currentProject.location}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-[#263238]/60 uppercase font-bold block">Lead Supervisor:</span>
-                  <strong className="text-[#123B5D]">{currentProject.supervisor}</strong>
-                </div>
-              </div>
+
             </div>
 
             {/* Master Payroll Table */}
@@ -302,9 +284,12 @@ export const PayrollMasterPrinter: React.FC<PayrollMasterPrinterProps> = ({
               </div>
             </div>
 
-            <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-[#263238]/60">
-              <span>DOLE DO 13 Compliant Labor Record | 4Ace Desk ERP</span>
-              <span>Official Master Record</span>
+            <div className="mt-6 pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[10px] text-[#263238]/70">
+              <div>
+                <strong className="block text-[#123B5D]">4Ace Desk Construction</strong>
+                <span>PCAB License #84920-AAA | General Engineering &amp; Building Contractor</span>
+              </div>
+              <span className="font-semibold">Official Master Record</span>
             </div>
           </div>
         </div>

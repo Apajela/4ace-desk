@@ -492,7 +492,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                     onChange={(e) => setPaymentMode(e.target.value)}
                     className="w-full px-3 py-2 border border-[#cbeaf0] rounded-xl text-[#263238] bg-white focus:outline-none focus:border-[#18A999]"
                   >
-                    <option value="Cash">Cash Voucher</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Cash Voucher">Cash Voucher</option>
                     <option value="Bank Transfer">Bank Transfer / Online</option>
                     <option value="GCash">GCash / Digital Wallet</option>
                     <option value="Check">Company Check</option>

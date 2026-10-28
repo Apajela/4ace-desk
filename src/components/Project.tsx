@@ -11,6 +11,7 @@ export interface ProjectModalProps {
   onAddProject: (project: Omit<ProjectType, 'id'>) => void;
   onUpdateProject?: (project: ProjectType) => void;
   initialProject?: ProjectType | null;
+  confirmPassword?: (action: string) => boolean;
 }
 
 export const ProjectModal: React.FC<ProjectModalProps> = ({
@@ -19,6 +20,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   onAddProject,
   onUpdateProject,
   initialProject,
+  confirmPassword,
 }) => {
   const [name, setName] = useState(initialProject?.name || '');
   const [code, setCode] = useState(initialProject?.code || `4ACE-${new Date().getFullYear()}-0${Math.floor(10 + Math.random() * 90)}`);
@@ -36,6 +38,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    if (confirmPassword && !confirmPassword(initialProject ? 'update this site record' : 'create this site record')) return;
 
     if (initialProject && onUpdateProject) {
       onUpdateProject({
@@ -80,7 +83,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             <FolderKanban className="w-4 h-4 text-[#18A999]" />
             <span>{initialProject ? 'Edit Construction Site' : 'Create New Project Site'}</span>
           </h3>
-          <button onClick={onClose} className="text-white/70 hover:text-white cursor-pointer">
+          <button onClick={() => { if (!confirmPassword || confirmPassword('cancel editing this site record')) onClose(); }} className="text-white/70 hover:text-white cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -202,7 +205,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => { if (!confirmPassword || confirmPassword('cancel editing this site record')) onClose(); }}
               className="px-4 py-2 rounded-lg bg-[#EAF7FA] text-[#123B5D] hover:bg-slate-200 font-bold cursor-pointer transition-colors"
             >
               Cancel

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AttendanceStatus, DailyAttendanceRecord, Worker } from '../types';
+import { AttendanceStatus, DailyAttendanceRecord, Worker, UserProfile } from '../types';
 import { AttendanceStatusBadge, INITIAL_Attendance_Status_List } from './AttendanceStatus';
 import {
   Calendar,
@@ -27,6 +27,7 @@ export interface AttendanceRecordProps {
   onUpdateRecord?: (record: DailyAttendanceRecord) => void;
   projectName?: string;
   workers?: Worker[];
+  users?: UserProfile[];
   projects?: { id: string; name: string }[];
   onSaveAttendance?: (
     date: string,
@@ -60,6 +61,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
   onUpdateRecord,
   projectName = 'Residential Renovation',
   workers = [],
+  users = [],
   projects = [],
   onSaveAttendance,
   onClose,
@@ -82,15 +84,19 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
   const [workerDailyRate, setWorkerDailyRate] = useState<number>(750);
   const [workerPhone, setWorkerPhone] = useState('+63 917 ');
   const [workerUsername, setWorkerUsername] = useState('');
+  const [linkedUserId, setLinkedUserId] = useState('');
   const [workerPassword, setWorkerPassword] = useState('');
   const [workerProject, setWorkerProject] = useState(projects[0]?.id || 'proj-1');
   const [workerStatus, setWorkerStatus] = useState<'Active' | 'Inactive'>('Active');
   const [workerToDelete, setWorkerToDelete] = useState<Worker | null>(null);
 
+  const selectedProjectId = projects.find((project) => project.name === projectName)?.id || projects[0]?.id || 'proj-1';
+  const projectWorkers = workers.filter((worker) => worker.status !== 'Inactive' && (worker.assignedProject || selectedProjectId) === selectedProjectId);
+
   React.useEffect(() => {
-    if (workers && workers.length > 0) {
-      const existingWorkerIds = new Set(data.filter((r) => r.date === filterDate).map((r) => r.workerId));
-      const missing = workers
+    if (projectWorkers.length > 0) {
+      const existingWorkerIds = new Set(data.filter((r) => r.date === filterDate && r.projectId === selectedProjectId).map((r) => r.workerId));
+      const missing = projectWorkers
         .filter((w) => !existingWorkerIds.has(w.id))
         .map((w, idx) => ({
           id: `att-gen-${w.id}-${Date.now() + idx}`,
@@ -98,7 +104,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
           workerName: w.name,
           trade: w.role,
           dailyRate: w.dailyRate,
-          projectId: w.assignedProject || 'proj-1',
+          projectId: selectedProjectId,
           date: filterDate,
           timeIn: '07:00 AM',
           timeOut: '05:00 PM',
@@ -115,9 +121,10 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
         setData((prev) => [...prev, ...missing]);
       }
     }
-  }, [workers, filterDate]);
+  }, [workers, filterDate, selectedProjectId]);
 
   const filteredAttendance = data.filter((item) => {
+    if (item.projectId !== selectedProjectId) return false;
     if (filterDate && item.date && item.date !== filterDate) return false;
     if (filterStatus !== 'all') {
       const s = String(item.status).toLowerCase();
@@ -136,7 +143,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
     return true;
   });
 
-  const filteredCrew = workers.filter((w) => {
+  const filteredCrew = projectWorkers.filter((w) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -146,16 +153,25 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
     );
   });
 
-  const presentCount = data.filter((r) => {
+  // Attendance KPIs are for the selected day only. Do not count the same crew
+  // again across previous dates (which caused values such as 56 workers).
+  const activeProjectWorkerIds = new Set(projectWorkers.map((worker) => worker.id));
+  const selectedDayAttendance = Array.from(
+    data.filter((r) => r.date === filterDate && r.projectId === selectedProjectId && activeProjectWorkerIds.has(r.workerId)).reduce((byWorker, record) => {
+      byWorker.set(record.workerId, record);
+      return byWorker;
+    }, new Map<string, DailyAttendanceRecord>()).values()
+  );
+  const presentCount = selectedDayAttendance.filter((r) => {
     const s = String(r.status).toLowerCase();
     return s === 'present' || s === 'overtime';
   }).length;
-  const otTotalHours = data.reduce((sum, r) => sum + (r.otHours ?? r.overtimeHours ?? 0), 0);
-  const halfDayCount = data.filter((r) => {
+  const otTotalHours = selectedDayAttendance.reduce((sum, r) => sum + (r.otHours ?? r.overtimeHours ?? 0), 0);
+  const halfDayCount = selectedDayAttendance.filter((r) => {
     const s = String(r.status).toLowerCase();
     return s === 'half day' || s === 'half_day';
   }).length;
-  const absentCount = data.filter((r) => String(r.status).toLowerCase() === 'absent').length;
+  const absentCount = selectedDayAttendance.filter((r) => String(r.status).toLowerCase() === 'absent').length;
 
   const handleStatusChange = (id: string, newStatus: AttendanceStatus) => {
     const updated = data.map((r) => (r.id === id ? { ...r, status: newStatus } : r));
@@ -179,7 +195,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
   const handleBatchSave = () => {
     if (onSaveAttendance) {
       const recordsMap: Record<string, { status: AttendanceStatus; otHours: number; remarks: string; projectId: string }> = {};
-      data.filter((r) => !r.date || r.date === filterDate).forEach((r) => {
+      data.filter((r) => r.projectId === selectedProjectId && (!r.date || r.date === filterDate)).forEach((r) => {
         let normalizedStatus: AttendanceStatus = 'present';
         const s = String(r.status).toLowerCase();
         if (s === 'overtime') normalizedStatus = 'overtime';
@@ -209,7 +225,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
     setWorkerRole('Lead Mason');
     setWorkerDailyRate(750);
     setWorkerPhone('+63 917 ');
-    setWorkerUsername(''); setWorkerPassword('');
+    setWorkerUsername(''); setWorkerPassword(''); setLinkedUserId('');
     setWorkerProject(projects[0]?.id || 'proj-1');
     setWorkerStatus('Active');
     setShowWorkerModal(true);
@@ -222,7 +238,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
     setWorkerRole(worker.role);
     setWorkerDailyRate(worker.dailyRate);
     setWorkerPhone(worker.phone || '+63 917 ');
-    setWorkerUsername(worker.username || ''); setWorkerPassword(worker.password || '');
+    setWorkerUsername(worker.username || ''); setWorkerPassword(worker.password || ''); setLinkedUserId(worker.linkedUserId || '');
     setWorkerProject(worker.assignedProject || projects[0]?.id || 'proj-1');
     setWorkerStatus(worker.status);
     setShowWorkerModal(true);
@@ -240,7 +256,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
         role: workerRole.trim(),
         dailyRate: Number(workerDailyRate) || 700,
         phone: workerPhone.trim(),
-        username: workerUsername.trim(), password: workerPassword || undefined,
+        username: workerUsername.trim(), password: workerPassword || undefined, linkedUserId: linkedUserId || undefined,
         assignedProject: workerProject,
         status: workerStatus,
       };
@@ -261,7 +277,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
         role: workerRole.trim(),
         dailyRate: Number(workerDailyRate) || 700,
         phone: workerPhone.trim(),
-        username: workerUsername.trim(), password: workerPassword || undefined,
+        username: workerUsername.trim(), password: workerPassword || undefined, linkedUserId: linkedUserId || undefined,
         assignedProject: workerProject,
         status: workerStatus,
       };
@@ -338,12 +354,6 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
         </div>
       </div>
 
-      {activeSubTab === 'attendance' && (
-        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-relaxed text-slate-700">
-          <strong className="text-[#123B5D]">DTR / Payroll computation:</strong> Saved daily attendance is the source record. Present or overtime shift = 1 day (8 regular hours); half-day = 0.5 day (4 hours); absent = 0 day. Approved OT hours are counted separately at 1.25× the hourly rate. Weekly gross pay = (days worked × daily rate) + OT pay. Review the date, status, and OT hours before selecting Save &amp; Sync.
-        </div>
-      )}
-
       {/* Navigation Sub-Tabs Switcher */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#EAF7FA] p-2 rounded-2xl border border-[#cbeaf0]">
         <div className="flex items-center gap-2">
@@ -367,7 +377,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
             }`}
           >
             <Users className="w-4 h-4 text-[#18A999]" />
-            <span>Crew / Labor Masterlist ({workers.length})</span>
+            <span>Crew / Labor Masterlist ({projectWorkers.length})</span>
           </button>
         </div>
 
@@ -375,7 +385,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
           {activeSubTab === 'attendance' ? (
             <span>Logging for date: <strong className="text-[#18A999]">{filterDate}</strong></span>
           ) : (
-            <span>Total Registered Personnel: <strong className="text-[#18A999]">{workers.length}</strong></span>
+            <span>Total Registered Personnel: <strong className="text-[#18A999]">{projectWorkers.length}</strong></span>
           )}
         </div>
       </div>
@@ -393,7 +403,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
             <div className="text-2xl font-black text-[#123B5D] mt-1 font-mono">
               {presentCount} Workers
             </div>
-            <div className="text-[10px] text-[#546e7a] mt-0.5">Full day regular shift</div>
+            
           </div>
 
           <div className="bg-white p-4 rounded-2xl border border-[#cbeaf0] shadow-xs">
@@ -432,7 +442,7 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
             <div className="text-2xl font-black text-rose-600 mt-1 font-mono">
               {absentCount}
             </div>
-            <div className="text-[10px] text-rose-500 mt-0.5">No work, no pay standard</div>
+            
           </div>
         </div>
       )}
@@ -693,6 +703,24 @@ export const AttendanceRecord: React.FC<AttendanceRecordProps> = ({
             </div>
 
             <form onSubmit={handleSaveWorkerSubmit} className="p-5 space-y-3.5 text-xs">
+              {!editingWorker && users.filter((user) => user.accessLevel !== 'Full Access (Admin)' && !workers.some((worker) => worker.linkedUserId === user.id || worker.username?.toLowerCase() === user.username.toLowerCase())).length > 0 && (
+                <div>
+                  <label className="block font-semibold text-[#123B5D] mb-1">Link an Existing Regular Account (optional)</label>
+                  <select
+                    value={linkedUserId}
+                    onChange={(e) => {
+                      const account = users.find((user) => user.id === e.target.value);
+                      setLinkedUserId(e.target.value);
+                      if (account) { setWorkerName(account.name); setWorkerUsername(account.username); setWorkerRole(account.role || 'General Laborer / Helper'); setWorkerPassword(''); }
+                    }}
+                    className="w-full px-3 py-2 border border-[#cbeaf0] rounded-xl text-[#263238] bg-white"
+                  >
+                    <option value="">Create crew member without linking an account</option>
+                    {users.filter((user) => user.accessLevel !== 'Full Access (Admin)' && !workers.some((worker) => worker.linkedUserId === user.id || worker.username?.toLowerCase() === user.username.toLowerCase())).map((user) => <option key={user.id} value={user.id}>{user.name} (@{user.username})</option>)}
+                  </select>
+                  <p className="mt-1 text-[10px] text-slate-500">Selecting an account links its login to this crew record. The same person will be matched in attendance and payroll by account/name.</p>
+                </div>
+              )}
               <div>
                 <label className="block font-semibold text-[#123B5D] mb-1">
                   Full Name of Worker / Laborer *

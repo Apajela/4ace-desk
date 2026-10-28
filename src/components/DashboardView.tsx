@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  DollarSign,
   Users,
   Building2,
   ArrowRight,
@@ -186,6 +185,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="text-5xl mb-4" aria-hidden="true">🎉</div>
       <h1 className="text-2xl sm:text-3xl font-black text-[#123B5D]">Congratulations, Team!</h1>
       <p className="mt-4 text-base sm:text-lg leading-relaxed text-slate-700">All projects have been successfully completed! Congratulations to everyone for the hard work, dedication, and teamwork that made this achievement possible. Great job, everyone! Keep up the excellent work! 🏆</p>
+      {isFullAccess && <button type="button" onClick={onOpenProjectModal} className="mt-6 rounded-xl bg-[#18A999] px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-[#148f81]">+ Add Site</button>}
     </section>;
   }
 
@@ -322,7 +322,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-[#EAF7FA] border border-[#cbeaf0] flex items-center justify-center text-[#18A999] shrink-0">
-                    <DollarSign className="w-6 h-6" />
+                    <span className="text-xl font-black">₱</span>
                   </div>
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-[#546e7a]">

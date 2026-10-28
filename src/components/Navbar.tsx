@@ -3,7 +3,7 @@ import {
   HardHat,
   LayoutDashboard,
   Users,
-  DollarSign,
+  PhilippinePeso,
   Receipt,
   FileText,
   ListTodo,
@@ -41,6 +41,10 @@ export interface NavbarProps {
   onOpenProfileModal: () => void;
   onOpenReceiptScanner: () => void;
   onOpenNewProject?: () => void;
+  isFullAccess?: boolean;
+  onOpenManageAccounts?: () => void;
+  onExportData?: () => void;
+  onImportData?: (file?: File) => void;
   allowedTabs?: string[];
   onLogout: () => void;
   pendingPrioritiesCount: number;
@@ -57,19 +61,26 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNotifications,
   onOpenProfileModal,
   onOpenReceiptScanner,
+  onOpenNewProject,
+  isFullAccess = false,
+  onOpenManageAccounts,
+  onExportData,
+  onImportData,
   allowedTabs,
   onLogout,
   pendingPrioritiesCount,
 }) => {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => { try { return localStorage.getItem('4ace_dark_mode') === 'true'; } catch { return false; } });
   const [highContrast, setHighContrast] = useState(() => { try { return localStorage.getItem('4ace_high_contrast') === 'true'; } catch { return false; } });
   const [largeText, setLargeText] = useState(() => { try { return localStorage.getItem('4ace_large_text') === 'true'; } catch { return false; } });
   React.useEffect(() => {
+    document.documentElement.classList.toggle('dark-mode', darkMode);
     document.documentElement.classList.toggle('high-contrast', highContrast);
     document.documentElement.classList.toggle('large-text', largeText);
-    try { localStorage.setItem('4ace_high_contrast', String(highContrast)); localStorage.setItem('4ace_large_text', String(largeText)); } catch {}
-  }, [highContrast, largeText]);
+    try { localStorage.setItem('4ace_dark_mode', String(darkMode)); localStorage.setItem('4ace_high_contrast', String(highContrast)); localStorage.setItem('4ace_large_text', String(largeText)); } catch {}
+  }, [darkMode, highContrast, largeText]);
 
   const unreadNotifCount = notifications.filter((notification) => !notification.read).length;
 
@@ -87,7 +98,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       badge: pendingPrioritiesCount,
     },
     { id: 'attendance', label: 'Crew & Attendance', icon: Users },
-    { id: 'payroll', label: 'Weekly Payroll', icon: DollarSign },
+    { id: 'payroll', label: 'Weekly Payroll', icon: PhilippinePeso },
     { id: 'expenses', label: 'Expenses & Ledger', icon: Receipt },
     { id: 'reports', label: 'Reports & Costing', icon: FileText },
     { id: 'archive', label: 'Project History', icon: Archive },
@@ -188,6 +199,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Scan Receipt</span>
             </button>}
 
+            <button type="button" onClick={() => setDarkMode((value) => !value)} aria-pressed={darkMode} aria-label="Toggle dark mode" title="Dark mode" className="p-2 rounded-lg text-teal-100 hover:text-white hover:bg-[#0e2e49] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">{darkMode ? '☀' : '☾'}</button>
             <button type="button" onClick={() => setHighContrast((value) => !value)} aria-pressed={highContrast} aria-label="Toggle high contrast mode" title="High contrast mode" className="p-2 rounded-lg text-teal-100 hover:text-white hover:bg-[#0e2e49] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">◐</button>
             <button type="button" onClick={() => setLargeText((value) => !value)} aria-pressed={largeText} aria-label="Toggle larger text" title="Larger text" className="p-2 rounded-lg text-teal-100 hover:text-white hover:bg-[#0e2e49] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">A+</button>
             <button type="button" onClick={startVoiceNavigation} aria-label="Voice navigation" title="Voice navigation: say Projects, Sites, Foremen, or Labor" className="p-2 rounded-lg text-teal-100 hover:text-white hover:bg-[#0e2e49] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"><Mic className="w-4 h-4" aria-hidden="true" /></button>
@@ -249,16 +261,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <Edit2 className="w-3.5 h-3.5 text-[#18A999]" />
                       <span>Edit Profile / Credentials</span>
                     </button>
-                    {allowedTabs?.includes('archive') && <button
-                      onClick={() => {
-                        setUserDropdownOpen(false);
-                        selectTab('archive');
-                      }}
-                      className="w-full px-4 py-2 text-left hover:bg-[#0e2e49] text-teal-300 flex items-center gap-2 cursor-pointer"
-                    >
-                      <Archive className="w-3.5 h-3.5" />
-                      <span>Project History &amp; Archive</span>
-                    </button>}
+                    {isFullAccess && <button onClick={() => { setUserDropdownOpen(false); onOpenNewProject?.(); }} className="w-full px-4 py-2 text-left hover:bg-[#0e2e49] text-slate-100 flex items-center gap-2 cursor-pointer"><FolderKanban className="w-3.5 h-3.5 text-[#18A999]" /><span>Edit Site Record</span></button>}
+                    {isFullAccess && <button onClick={() => { setUserDropdownOpen(false); onOpenManageAccounts?.(); }} className="w-full px-4 py-2 text-left hover:bg-[#0e2e49] text-slate-100 flex items-center gap-2 cursor-pointer"><Users className="w-3.5 h-3.5 text-[#18A999]" /><span>Manage User Accounts</span></button>}
+                    <button onClick={() => { setUserDropdownOpen(false); onExportData?.(); }} className="w-full px-4 py-2 text-left hover:bg-[#0e2e49] text-slate-100 flex items-center gap-2 cursor-pointer"><DownloadCloud className="w-3.5 h-3.5 text-[#18A999]" /><span>Export Data</span></button>
+                    <label className="w-full px-4 py-2 text-left hover:bg-[#0e2e49] text-slate-100 flex items-center gap-2 cursor-pointer"><FolderKanban className="w-3.5 h-3.5 text-[#18A999]" /><span>Import Data</span><input type="file" accept="application/json,.json" className="hidden" onChange={(event) => { onImportData?.(event.target.files?.[0]); event.currentTarget.value = ''; setUserDropdownOpen(false); }} /></label>
                   </div>
                   <div className="pt-1 border-t border-[#1a4c75]">
                     <button
