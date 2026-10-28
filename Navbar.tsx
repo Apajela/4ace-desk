@@ -3,7 +3,7 @@ import {
   HardHat,
   LayoutDashboard,
   Users,
-  DollarSign,
+  PhilippinePeso,
   Receipt,
   FileText,
   ListTodo,
@@ -60,7 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'priorities', label: "Today's Priorities", icon: ListTodo, badge: pendingPrioritiesCount },
     { id: 'attendance', label: 'Crew & Attendance', icon: Users },
-    { id: 'payroll', label: 'Weekly Payroll', icon: DollarSign },
+    { id: 'payroll', label: 'Weekly Payroll', icon: PhilippinePeso },
     { id: 'expenses', label: 'Expenses & Ledger', icon: Receipt },
     { id: 'reports', label: 'Reports & Costing', icon: FileText },
   ];
