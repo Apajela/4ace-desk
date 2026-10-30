@@ -41,6 +41,24 @@ import { UserProfileModal as UserProfile } from './components/UserProfile';
 import { ProjectModal } from './components/Project';
 import { ReportsView } from './components/ReportsView';
 
+async function loadProjectsFromApi() {
+  const response = await fetch('/api/projects');
+
+  if (!response.ok) {
+    throw new Error(`Projects API failed: ${response.status}`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success || !Array.isArray(result.data)) {
+    throw new Error('Invalid response from Projects API');
+  }
+
+  return result.data;
+}
+
+
+
 export default function App() {
   // Safe LocalStorage Helper
   const getInitialData = <T,>(key: string, fallback: T): T => {
@@ -81,6 +99,34 @@ export default function App() {
 
   // Core Data Stores
   const [projects, setProjects] = useLocalStorage<Project[]>('4ace_projects', DEFAULT_PROJECTS);
+const [projectsApiLoaded, setProjectsApiLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function syncProjectsFromApi() {
+      try {
+        const apiProjects = await loadProjectsFromApi();
+
+        if (cancelled) return;
+
+        // PostgreSQL is the source of truth for Site Records.
+        // Do not merge stale browser localStorage records into the API list.
+        setProjects(apiProjects);
+        setProjectsApiLoaded(true);
+        console.log('Projects loaded from API:', apiProjects.length);
+      } catch (error) {
+        console.error('Unable to load projects from API:', error);
+      }
+    }
+
+    void syncProjectsFromApi();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [setProjects]);
+
   const [currentProjectId, setCurrentProjectId] = useLocalStorage<string>('4ace_current_project', () => {
     const active = projects.find((p) => p.status !== 'Completed' && p.status !== 'Cancelled');
     return active ? active.id : (projects[0]?.id || DEFAULT_PROJECTS[0].id);
@@ -339,13 +385,39 @@ export default function App() {
   };
 
   // Projects Handlers
-  const handleAddProject = (newProj: Omit<Project, 'id'>) => {
+  const handleAddProject = async (newProj: Omit<Project, 'id'>) => {
+    // Create one stable ID and persist to PostgreSQL before updating the UI.
     const project: Project = {
       ...newProj,
-      id: `proj-${Date.now()}`,
+      id: `proj-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     };
-    setProjects((prev) => [project, ...prev]);
-    setCurrentProjectId(project.id);
+
+    try {
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(project),
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.success || !result.data) {
+        throw new Error(result.message || 'Failed to save project');
+      }
+
+      const savedProject = result.data as Project;
+      setProjects((prev) => [
+        savedProject,
+        ...prev.filter(
+          (item) => item.id !== savedProject.id && item.code !== savedProject.code
+        ),
+      ]);
+      setCurrentProjectId(savedProject.id);
+      console.log('Project saved to PostgreSQL:', savedProject);
+    } catch (error) {
+      console.error('Unable to save project to PostgreSQL:', error);
+      alert('Hindi na-save ang site sa PostgreSQL. Pakisubukan ulit.');
+      return;
+    }
 
     const notif: NotificationItem = {
       id: `notif-${Date.now()}`,
@@ -356,8 +428,10 @@ export default function App() {
       read: false,
       actionTab: 'dashboard',
     };
+
     setNotifications((prev) => [notif, ...prev]);
   };
+
 
   // Project completion must not be blocked by an unposted payroll expense.
   // Payroll can still be marked Paid later; its labor expense is recorded automatically.
@@ -1113,7 +1187,45 @@ export default function App() {
         />
       )}
 
-      {showEditProjectModal && <ProjectModal isOpen={showEditProjectModal} onClose={() => setShowEditProjectModal(false)} onAddProject={handleAddProject} confirmPassword={confirmPassword} initialProject={activeProject} onUpdateProject={(updated) => { setProjects((previous) => previous.map((project) => project.id === updated.id ? updated : project)); setCurrentProjectId(updated.id); setShowEditProjectModal(false); }} />}
+      {showEditProjectModal && (
+        <ProjectModal
+          isOpen={showEditProjectModal}
+          onClose={() => setShowEditProjectModal(false)}
+          onAddProject={handleAddProject}
+          confirmPassword={confirmPassword}
+          initialProject={activeProject}
+          onUpdateProject={async (updated) => {
+            try {
+              const response = await fetch(`/api/projects/${encodeURIComponent(updated.id)}`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updated),
+              });
+
+              const result = await response.json();
+
+              if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Failed to update project');
+              }
+
+              setProjects((previous) =>
+                previous.map((project) =>
+                  project.id === updated.id ? result.data : project
+                )
+              );
+
+              setCurrentProjectId(updated.id);
+              setShowEditProjectModal(false);
+              console.log('Project updated in PostgreSQL:', result.data);
+            } catch (error) {
+              console.error('Unable to update project in PostgreSQL:', error);
+              alert('Hindi na-update ang project sa database. Pakisubukan ulit.');
+            }
+          }}
+        />
+      )}
 
       {showProjectModal && (
         <ProjectModal
