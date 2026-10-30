@@ -1,4 +1,6 @@
 import express, { Request, Response } from 'express';
+import { pool } from './db.ts';
+import { getRecords, saveRecord } from './db-store.ts';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -152,15 +154,84 @@ app.get('/api/health', (_req: Request, res: Response) => {
 });
 
 // 1. Projects
-app.get('/api/projects', (_req: Request, res: Response) => {
-  res.json({ success: true, data: projects });
+
+ // 1. Projects
+app.get('/api/projects', async (_req: Request, res: Response) => {
+  try {
+    const savedProjects = await getRecords('projects');
+
+    res.json({
+      success: true,
+      data: savedProjects.length > 0 ? savedProjects : projects,
+    });
+  } catch (error) {
+    console.error('Failed to load projects from PostgreSQL:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load projects from database.',
+    });
+  }
 });
 
-app.post('/api/projects', (req: Request, res: Response) => {
-  const newProject = { ...req.body, id: `proj-${Date.now()}` };
-  projects.unshift(newProject);
-  res.status(201).json({ success: true, data: newProject });
+app.post('/api/projects', async (req: Request, res: Response) => {
+  try {
+    const newProject = {
+      ...req.body,
+      id: `proj-${Date.now()}`,
+    };
+
+    await saveRecord('projects', newProject);
+
+    res.status(201).json({
+      success: true,
+      data: newProject,
+    });
+  } catch (error) {
+    console.error('Failed to save project to PostgreSQL:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save project to database.',
+    });
+  }
 });
+
+
+app.patch('/api/projects/:id', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+
+    const existingProjects = await getRecords<Project>('projects');
+    const existingProject = existingProjects.find((p) => p.id === id);
+
+    if (!existingProject) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found.',
+      });
+    }
+
+    const updatedProject = {
+      ...existingProject,
+      ...req.body,
+      id,
+    };
+
+    await saveRecord('projects', updatedProject);
+
+    return res.json({
+      success: true,
+      data: updatedProject,
+    });
+  } catch (error) {
+    console.error('Failed to update project in PostgreSQL:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update project in database.',
+    });
+  }
+});
+
 
 // 2. Workers
 app.get('/api/workers', (_req: Request, res: Response) => {

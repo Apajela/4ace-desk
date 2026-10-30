@@ -1,12 +1,64 @@
 // server.ts
 import express from "express";
+
+// db.ts
 import dotenv from "dotenv";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import pg from "pg";
 dotenv.config();
-var __filename = fileURLToPath(import.meta.url);
-var __dirname = path.dirname(__filename);
+var { Pool } = pg;
+var currentDir = path.dirname(fileURLToPath(import.meta.url));
+var caPath = path.join(currentDir, "ca.pem");
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is missing from .env");
+}
+if (!fs.existsSync(caPath)) {
+  throw new Error("Aiven CA certificate ca.pem was not found.");
+}
+var databaseUrl = new URL(process.env.DATABASE_URL);
+databaseUrl.searchParams.delete("sslmode");
+databaseUrl.searchParams.delete("sslrootcert");
+var pool = new Pool({
+  connectionString: databaseUrl.toString(),
+  ssl: {
+    ca: fs.readFileSync(caPath, "utf8"),
+    rejectUnauthorized: true
+  },
+  connectionTimeoutMillis: 1e4,
+  max: 5
+});
+pool.on("error", (error) => {
+  console.error("Unexpected PostgreSQL pool error:", error.message);
+});
+
+// db-store.ts
+async function getRecords(table) {
+  const result = await pool.query(
+    `SELECT data FROM ${table} ORDER BY updated_at DESC`
+  );
+  return result.rows.map((row) => row.data);
+}
+async function saveRecord(table, record) {
+  await pool.query(
+    `INSERT INTO ${table} (id, data, updated_at)
+     VALUES ($1, $2::jsonb, NOW())
+     ON CONFLICT (id)
+     DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
+    [record.id, JSON.stringify(record)]
+  );
+  return record;
+}
+
+// server.ts
+import dotenv2 from "dotenv";
+import path2 from "path";
+import fs2 from "fs";
+import { fileURLToPath as fileURLToPath2 } from "url";
+dotenv2.config();
+var __filename = fileURLToPath2(import.meta.url);
+var __dirname = path2.dirname(__filename);
 var app = express();
 var PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
 app.use((req, res, next) => {
@@ -136,13 +188,68 @@ app.get("/api/health", (_req, res) => {
     uptime: process.uptime()
   });
 });
-app.get("/api/projects", (_req, res) => {
-  res.json({ success: true, data: projects });
+app.get("/api/projects", async (_req, res) => {
+  try {
+    const savedProjects = await getRecords("projects");
+    res.json({
+      success: true,
+      data: savedProjects.length > 0 ? savedProjects : projects
+    });
+  } catch (error) {
+    console.error("Failed to load projects from PostgreSQL:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load projects from database."
+    });
+  }
 });
-app.post("/api/projects", (req, res) => {
-  const newProject = { ...req.body, id: `proj-${Date.now()}` };
-  projects.unshift(newProject);
-  res.status(201).json({ success: true, data: newProject });
+app.post("/api/projects", async (req, res) => {
+  try {
+    const newProject = {
+      ...req.body,
+      id: `proj-${Date.now()}`
+    };
+    await saveRecord("projects", newProject);
+    res.status(201).json({
+      success: true,
+      data: newProject
+    });
+  } catch (error) {
+    console.error("Failed to save project to PostgreSQL:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to save project to database."
+    });
+  }
+});
+app.patch("/api/projects/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const existingProjects = await getRecords("projects");
+    const existingProject = existingProjects.find((p) => p.id === id);
+    if (!existingProject) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found."
+      });
+    }
+    const updatedProject = {
+      ...existingProject,
+      ...req.body,
+      id
+    };
+    await saveRecord("projects", updatedProject);
+    return res.json({
+      success: true,
+      data: updatedProject
+    });
+  } catch (error) {
+    console.error("Failed to update project in PostgreSQL:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update project in database."
+    });
+  }
 });
 app.get("/api/workers", (_req, res) => {
   res.json({ success: true, data: workers });
@@ -217,15 +324,15 @@ app.patch("/api/priorities/:id/toggle", (req, res) => {
   priorities = priorities.map((p) => p.id === id ? { ...p, completed: !p.completed } : p);
   res.json({ success: true });
 });
-var distPath = path.resolve(__dirname, "dist");
-var publicPath = path.resolve(__dirname, "public");
-if (fs.existsSync(publicPath)) {
+var distPath = path2.resolve(__dirname, "dist");
+var publicPath = path2.resolve(__dirname, "public");
+if (fs2.existsSync(publicPath)) {
   app.use(express.static(publicPath));
 }
-if (fs.existsSync(distPath)) {
+if (fs2.existsSync(distPath)) {
   app.use(express.static(distPath));
   app.get("*", (_req, res) => {
-    res.sendFile(path.join(distPath, "index.html"));
+    res.sendFile(path2.join(distPath, "index.html"));
   });
 } else {
   app.get("/", (_req, res) => {
